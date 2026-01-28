@@ -1,0 +1,51 @@
+const dataEvents = [
+  {
+    id: 1,
+    title: "Stellar developer and protocol",
+    date: "Thu, 22 Jan, 1:00 ",
+    location: "Discord",
+    price: "Free",
+    imageUrl: "/images/event1.png",
+  },
+  {
+    id: 2,
+    title: "React Summit 2026",
+    date: "Mon, 10 Feb, 9:00 ",
+    location: "Amsterdam, Netherlands",
+    price: "49",
+    imageUrl: "/images/event2.png",
+  },
+  {
+    id: 3,
+    title: "2026 Wemabod Real Estate Outlook",
+    date: "Wed, 5 Mar, 10:00",
+    location: "Hong Kong",
+    price: "Free",
+    imageUrl: "/images/event3.png",
+  },
+  {
+    id: 4,
+    title: "Next.js Conf 2026",
+    date: "Wed, 5 Mar, 10:00",
+    location: "Buenos Aires",
+    price: "Free",
+    imageUrl: "/images/event4.png",
+  },
+  {
+    id: 5,
+    title: "Consensus 2026",
+    date: "Wed, 5 Mar, 10:00",
+    location: "Online",
+    price: "Free",
+    imageUrl: "/images/event5.png",
+  },
+  {
+    id: 6,
+    title: "Consensus 2026",
+    date: "Tue, 3 Feb, 9:00",
+    location: "Online",
+    price: "35",
+    imageUrl: "/images/event6.png",
+  },
+];
+export { dataEvents };
