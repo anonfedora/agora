@@ -45,4 +45,5 @@ pub enum DataKey {
     Initialized,             // Initialization flag
     TokenWhitelist(Address), // token_address -> bool
     Balances(String),        // event_id -> EventBalance (escrow tracking)
+    TransferFee(String),     // event_id -> transfer_fee amount
 }

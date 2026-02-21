@@ -20,26 +20,34 @@ impl MockEventRegistry {
         }
     }
 
-    pub fn get_event(env: Env, _event_id: String) -> Option<event_registry::EventInfo> {
-        Some(event_registry::EventInfo {
-            event_id: String::from_str(&env, "event_1"),
-            organizer_address: Address::generate(&env),
-            payment_address: Address::generate(&env),
-            platform_fee_percent: 500,
-            is_active: true,
-            created_at: 0,
-            metadata_cid: String::from_str(
-                &env,
-                "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
-            ),
-            max_supply: 0,
-            current_supply: 0,
-            milestone_plan: None,
-            tiers: soroban_sdk::Map::new(&env),
-        })
+    pub fn get_event(env: Env, event_id: String) -> Option<event_registry::EventInfo> {
+        let _organizer_address = Address::generate(&env);
+        // We use a fixed predictable address for some tests by mapping it in storage if needed,
+        // but for general setup, a generated one is fine.
+        // For testing set_transfer_fee, we'll need to know this address.
+        if event_id == String::from_str(&env, "event_1") {
+            return Some(event_registry::EventInfo {
+                event_id: String::from_str(&env, "event_1"),
+                organizer_address: Address::generate(&env), // This will be different each call unless mocked specifically
+                payment_address: Address::generate(&env),
+                platform_fee_percent: 500,
+                is_active: true,
+                created_at: 0,
+                metadata_cid: String::from_str(
+                    &env,
+                    "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+                ),
+                max_supply: 0,
+                current_supply: 0,
+                milestone_plan: None,
+                tiers: soroban_sdk::Map::new(&env),
+            });
+        }
+        None
     }
 
     pub fn increment_inventory(_env: Env, _event_id: String, _tier_id: String) {}
+    pub fn decrement_inventory(_env: Env, _event_id: String, _tier_id: String) {}
 }
 
 // Another Mock for different fee
@@ -943,4 +951,138 @@ fn test_withdraw_with_milestones() {
         balance.organizer_amount,
         expected_revenue_4_tickets - balance.total_withdrawn
     );
+}
+
+#[test]
+fn test_transfer_ticket_success() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let (client, _admin, _usdc_id, _, _) = setup_test(&env);
+    let buyer = Address::generate(&env);
+    let new_owner = Address::generate(&env);
+    let payment_id = String::from_str(&env, "pay_1");
+
+    // Pre-create a confirmed payment record
+    let payment = Payment {
+        payment_id: payment_id.clone(),
+        event_id: String::from_str(&env, "event_1"),
+        buyer_address: buyer.clone(),
+        ticket_tier_id: String::from_str(&env, "t1"),
+        amount: 1000,
+        platform_fee: 50,
+        organizer_amount: 950,
+        status: PaymentStatus::Confirmed,
+        transaction_hash: String::from_str(&env, "tx_1"),
+        created_at: 100,
+        confirmed_at: Some(101),
+    };
+
+    env.as_contract(&client.address, || {
+        store_payment(&env, payment);
+    });
+
+    client.transfer_ticket(&payment_id, &new_owner);
+
+    let updated = client.get_payment_status(&payment_id).unwrap();
+    assert_eq!(updated.buyer_address, new_owner);
+
+    // Verify indices
+    let old_owner_payments = client.get_buyer_payments(&buyer);
+    assert_eq!(old_owner_payments.len(), 0);
+
+    let new_owner_payments = client.get_buyer_payments(&new_owner);
+    assert_eq!(new_owner_payments.len(), 1);
+    assert_eq!(new_owner_payments.get(0).unwrap(), payment_id);
+}
+
+#[test]
+fn test_transfer_ticket_with_fee() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, _admin, usdc_id, _, _) = setup_test(&env);
+    let usdc_token = token::StellarAssetClient::new(&env, &usdc_id);
+
+    let buyer = Address::generate(&env);
+    let new_owner = Address::generate(&env);
+    let payment_id = String::from_str(&env, "pay_1");
+    let event_id = String::from_str(&env, "event_1");
+    let transfer_fee = 100i128;
+
+    // Set transfer fee
+    env.as_contract(&client.address, || {
+        set_transfer_fee(&env, event_id.clone(), transfer_fee);
+    });
+
+    // Mint USDC to buyer for fee
+    usdc_token.mint(&buyer, &transfer_fee);
+    token::Client::new(&env, &usdc_id).approve(&buyer, &client.address, &transfer_fee, &9999);
+
+    // Initial escrow balance
+    let initial_escrow = client.get_event_escrow_balance(&event_id);
+
+    // Pre-create a confirmed payment record
+    let payment = Payment {
+        payment_id: payment_id.clone(),
+        event_id: event_id.clone(),
+        buyer_address: buyer.clone(),
+        ticket_tier_id: String::from_str(&env, "t1"),
+        amount: 1000,
+        platform_fee: 50,
+        organizer_amount: 950,
+        status: PaymentStatus::Confirmed,
+        transaction_hash: String::from_str(&env, "tx_1"),
+        created_at: 100,
+        confirmed_at: Some(101),
+    };
+
+    env.as_contract(&client.address, || {
+        store_payment(&env, payment);
+    });
+
+    client.transfer_ticket(&payment_id, &new_owner);
+
+    // Verify fee deduction
+    let new_escrow = client.get_event_escrow_balance(&event_id);
+    assert_eq!(
+        new_escrow.organizer_amount,
+        initial_escrow.organizer_amount + transfer_fee
+    );
+
+    let updated = client.get_payment_status(&payment_id).unwrap();
+    assert_eq!(updated.buyer_address, new_owner);
+}
+
+#[test]
+#[should_panic]
+fn test_transfer_ticket_unauthorized() {
+    let env = Env::default();
+
+    let (client, _, _, _, _) = setup_test(&env);
+    let buyer = Address::generate(&env);
+    let thief = Address::generate(&env);
+    let payment_id = String::from_str(&env, "pay_1");
+
+    let payment = Payment {
+        payment_id: payment_id.clone(),
+        event_id: String::from_str(&env, "event_1"),
+        buyer_address: buyer.clone(),
+        ticket_tier_id: String::from_str(&env, "t1"),
+        amount: 1000,
+        platform_fee: 50,
+        organizer_amount: 950,
+        status: PaymentStatus::Confirmed,
+        transaction_hash: String::from_str(&env, ""),
+        created_at: 100,
+        confirmed_at: Some(101),
+    };
+
+    env.as_contract(&client.address, || {
+        store_payment(&env, payment);
+    });
+
+    // Thief tries to transfer buyer's ticket WITHOUT mock_all_auths().
+    // The contract calls `from.require_auth()`, where `from` is `buyer`.
+    // Since we didn't mock_all_auths() or sign for `buyer`, this MUST panic.
+    client.transfer_ticket(&payment_id, &thief);
 }

@@ -165,3 +165,36 @@ pub fn set_event_balance(env: &Env, event_id: String, balance: EventBalance) {
         .persistent()
         .set(&DataKey::Balances(event_id), &balance);
 }
+
+pub fn set_transfer_fee(env: &Env, event_id: String, fee: i128) {
+    env.storage()
+        .persistent()
+        .set(&DataKey::TransferFee(event_id), &fee);
+}
+
+pub fn get_transfer_fee(env: &Env, event_id: String) -> i128 {
+    env.storage()
+        .persistent()
+        .get(&DataKey::TransferFee(event_id))
+        .unwrap_or(0)
+}
+
+pub fn add_payment_to_buyer_index(env: &Env, buyer_address: Address, payment_id: String) {
+    let key = DataKey::BuyerPayments(buyer_address);
+    let mut buyer_payments: Vec<String> = env.storage().persistent().get(&key).unwrap_or(vec![env]);
+    buyer_payments.push_back(payment_id);
+    env.storage().persistent().set(&key, &buyer_payments);
+}
+
+pub fn remove_payment_from_buyer_index(env: &Env, buyer_address: Address, payment_id: String) {
+    let key = DataKey::BuyerPayments(buyer_address);
+    if let Some(buyer_payments) = env.storage().persistent().get::<DataKey, Vec<String>>(&key) {
+        let mut new_payments = vec![env];
+        for p_id in buyer_payments.iter() {
+            if p_id != payment_id {
+                new_payments.push_back(p_id);
+            }
+        }
+        env.storage().persistent().set(&key, &new_payments);
+    }
+}

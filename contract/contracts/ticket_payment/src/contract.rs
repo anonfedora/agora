@@ -1,7 +1,8 @@
 use crate::storage::{
-    add_token_to_whitelist, get_admin, get_event_balance, get_event_registry, get_payment,
-    get_platform_wallet, is_initialized, is_token_whitelisted, remove_token_from_whitelist,
-    set_admin, set_event_registry, set_initialized, set_platform_wallet, set_usdc_token,
+    add_payment_to_buyer_index, add_token_to_whitelist, get_admin, get_event_balance,
+    get_event_registry, get_payment, get_platform_wallet, get_transfer_fee, is_initialized,
+    is_token_whitelisted, remove_payment_from_buyer_index, remove_token_from_whitelist, set_admin,
+    set_event_registry, set_initialized, set_platform_wallet, set_transfer_fee, set_usdc_token,
     store_payment, update_event_balance, update_payment_status,
 };
 use crate::types::{Payment, PaymentStatus};
@@ -9,7 +10,7 @@ use crate::{
     error::TicketPaymentError,
     events::{
         AgoraEvent, ContractUpgraded, InitializationEvent, PaymentProcessedEvent,
-        PaymentStatusChangedEvent,
+        PaymentStatusChangedEvent, TicketTransferredEvent,
     },
 };
 use soroban_sdk::{contract, contractimpl, token, Address, BytesN, Env, String};
@@ -465,6 +466,101 @@ impl TicketPaymentContract {
         );
 
         Ok(balance.platform_fee)
+    }
+
+    /// Returns all payments for a specific buyer.
+    pub fn get_buyer_payments(env: Env, buyer_address: Address) -> soroban_sdk::Vec<String> {
+        crate::storage::get_buyer_payments(&env, buyer_address)
+    }
+
+    /// Sets the transfer fee for an event. Only the organizer can call this.
+    pub fn set_transfer_fee(
+        env: Env,
+        event_id: String,
+        amount: i128,
+    ) -> Result<(), TicketPaymentError> {
+        if !is_initialized(&env) {
+            panic!("Contract not initialized");
+        }
+
+        let event_registry_addr = get_event_registry(&env);
+        let registry_client = event_registry::Client::new(&env, &event_registry_addr);
+
+        let event_info = match registry_client.try_get_event(&event_id) {
+            Ok(Ok(Some(info))) => info,
+            _ => return Err(TicketPaymentError::EventNotFound),
+        };
+
+        event_info.organizer_address.require_auth();
+
+        if amount < 0 {
+            panic!("Transfer fee must be non-negative");
+        }
+
+        set_transfer_fee(&env, event_id, amount);
+        Ok(())
+    }
+
+    /// Transfers a ticket from the current holder to a new owner.
+    pub fn transfer_ticket(
+        env: Env,
+        payment_id: String,
+        to: Address,
+    ) -> Result<(), TicketPaymentError> {
+        if !is_initialized(&env) {
+            panic!("Contract not initialized");
+        }
+
+        let mut payment =
+            get_payment(&env, payment_id.clone()).ok_or(TicketPaymentError::PaymentNotFound)?;
+
+        if payment.status != PaymentStatus::Confirmed {
+            return Err(TicketPaymentError::InvalidPaymentStatus);
+        }
+
+        let from = payment.buyer_address.clone();
+        from.require_auth();
+
+        if from == to {
+            return Err(TicketPaymentError::InvalidAddress);
+        }
+
+        let transfer_fee = get_transfer_fee(&env, payment.event_id.clone());
+
+        if transfer_fee > 0 {
+            let token_address = crate::storage::get_usdc_token(&env);
+            let token_client = token::Client::new(&env, &token_address);
+            let contract_address = env.current_contract_address();
+
+            // Transfer fee from old owner to contract
+            token_client.transfer_from(&contract_address, &from, &contract_address, &transfer_fee);
+
+            // Update escrow balances (fee goes to organizer)
+            update_event_balance(&env, payment.event_id.clone(), transfer_fee, 0);
+        }
+
+        // Update payment record
+        payment.buyer_address = to.clone();
+        let key = crate::types::DataKey::Payment(payment_id.clone());
+        env.storage().persistent().set(&key, &payment);
+
+        // Update indices
+        remove_payment_from_buyer_index(&env, from.clone(), payment_id.clone());
+        add_payment_to_buyer_index(&env, to.clone(), payment_id.clone());
+
+        // Emit transfer event
+        env.events().publish(
+            (AgoraEvent::TicketTransferred,),
+            TicketTransferredEvent {
+                payment_id,
+                from,
+                to,
+                transfer_fee,
+                timestamp: env.ledger().timestamp(),
+            },
+        );
+
+        Ok(())
     }
 }
 

@@ -8,6 +8,7 @@ pub enum AgoraEvent {
     PaymentStatusChanged,
     ContractInitialized,
     ContractUpgraded,
+    TicketTransferred,
 }
 
 #[contracttype]
@@ -44,4 +45,13 @@ pub struct InitializationEvent {
 pub struct ContractUpgraded {
     pub old_wasm_hash: BytesN<32>,
     pub new_wasm_hash: BytesN<32>,
+}
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TicketTransferredEvent {
+    pub payment_id: String,
+    pub from: Address,
+    pub to: Address,
+    pub transfer_fee: i128,
+    pub timestamp: u64,
 }
