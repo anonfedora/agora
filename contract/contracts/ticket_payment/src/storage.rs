@@ -11,27 +11,31 @@ pub fn get_admin(env: &Env) -> Option<Address> {
 
 pub fn store_payment(env: &Env, payment: Payment) {
     let key = DataKey::Payment(payment.payment_id.clone());
+    let exists = env.storage().persistent().has(&key);
+
     env.storage().persistent().set(&key, &payment);
 
-    // Index by event
-    let event_key = DataKey::EventPayments(payment.event_id.clone());
-    let mut event_payments: Vec<String> = env
-        .storage()
-        .persistent()
-        .get(&event_key)
-        .unwrap_or(vec![env]);
-    event_payments.push_back(payment.payment_id.clone());
-    env.storage().persistent().set(&event_key, &event_payments);
+    if !exists {
+        // Index by event
+        let event_key = DataKey::EventPayments(payment.event_id.clone());
+        let mut event_payments: Vec<String> = env
+            .storage()
+            .persistent()
+            .get(&event_key)
+            .unwrap_or(vec![env]);
+        event_payments.push_back(payment.payment_id.clone());
+        env.storage().persistent().set(&event_key, &event_payments);
 
-    // Index by buyer
-    let buyer_key = DataKey::BuyerPayments(payment.buyer_address.clone());
-    let mut buyer_payments: Vec<String> = env
-        .storage()
-        .persistent()
-        .get(&buyer_key)
-        .unwrap_or(vec![env]);
-    buyer_payments.push_back(payment.payment_id.clone());
-    env.storage().persistent().set(&buyer_key, &buyer_payments);
+        // Index by buyer
+        let buyer_key = DataKey::BuyerPayments(payment.buyer_address.clone());
+        let mut buyer_payments: Vec<String> = env
+            .storage()
+            .persistent()
+            .get(&buyer_key)
+            .unwrap_or(vec![env]);
+        buyer_payments.push_back(payment.payment_id.clone());
+        env.storage().persistent().set(&buyer_key, &buyer_payments);
+    }
 }
 
 pub fn get_payment(env: &Env, payment_id: String) -> Option<Payment> {
@@ -197,4 +201,17 @@ pub fn remove_payment_from_buyer_index(env: &Env, buyer_address: Address, paymen
         }
         env.storage().persistent().set(&key, &new_payments);
     }
+}
+
+pub fn set_bulk_refund_index(env: &Env, event_id: String, index: u32) {
+    env.storage()
+        .persistent()
+        .set(&DataKey::BulkRefundIndex(event_id), &index);
+}
+
+pub fn get_bulk_refund_index(env: &Env, event_id: String) -> u32 {
+    env.storage()
+        .persistent()
+        .get(&DataKey::BulkRefundIndex(event_id))
+        .unwrap_or(0)
 }

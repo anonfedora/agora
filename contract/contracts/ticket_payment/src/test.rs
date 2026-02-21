@@ -1086,3 +1086,113 @@ fn test_transfer_ticket_unauthorized() {
     // Since we didn't mock_all_auths() or sign for `buyer`, this MUST panic.
     client.transfer_ticket(&payment_id, &thief);
 }
+
+#[test]
+fn test_bulk_refund_success() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, _admin, usdc_id, _, _) = setup_test(&env);
+    let usdc_token = token::StellarAssetClient::new(&env, &usdc_id);
+
+    let buyer1 = Address::generate(&env);
+    let buyer2 = Address::generate(&env);
+    let event_id = String::from_str(&env, "event_1");
+    let tier_id = String::from_str(&env, "tier_1");
+
+    // Process two payments
+    usdc_token.mint(&buyer1, &1000);
+    token::Client::new(&env, &usdc_id).approve(&buyer1, &client.address, &1000, &9999);
+    client.process_payment(
+        &String::from_str(&env, "p1"),
+        &event_id,
+        &tier_id,
+        &buyer1,
+        &usdc_id,
+        &1000,
+    );
+
+    usdc_token.mint(&buyer2, &1000);
+    token::Client::new(&env, &usdc_id).approve(&buyer2, &client.address, &1000, &9999);
+    client.process_payment(
+        &String::from_str(&env, "p2"),
+        &event_id,
+        &tier_id,
+        &buyer2,
+        &usdc_id,
+        &1000,
+    );
+
+    // Confirm them
+    client.confirm_payment(&String::from_str(&env, "p1"), &String::from_str(&env, "h1"));
+    client.confirm_payment(&String::from_str(&env, "p2"), &String::from_str(&env, "h2"));
+
+    // Initial balances
+    let initial_buyer1 = token::Client::new(&env, &usdc_id).balance(&buyer1);
+    let initial_buyer2 = token::Client::new(&env, &usdc_id).balance(&buyer2);
+    assert_eq!(initial_buyer1, 0);
+    assert_eq!(initial_buyer2, 0);
+
+    // Trigger bulk refund
+    let count = client.trigger_bulk_refund(&event_id, &10);
+    assert_eq!(count, 2);
+
+    // Check final balances
+    assert_eq!(token::Client::new(&env, &usdc_id).balance(&buyer1), 1000);
+    assert_eq!(token::Client::new(&env, &usdc_id).balance(&buyer2), 1000);
+
+    // Check statuses
+    assert_eq!(
+        client
+            .get_payment_status(&String::from_str(&env, "p1"))
+            .unwrap()
+            .status,
+        PaymentStatus::Refunded
+    );
+    assert_eq!(
+        client
+            .get_payment_status(&String::from_str(&env, "p2"))
+            .unwrap()
+            .status,
+        PaymentStatus::Refunded
+    );
+}
+
+#[test]
+fn test_bulk_refund_batching() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, _admin, usdc_id, _, _) = setup_test(&env);
+    let usdc_token = token::StellarAssetClient::new(&env, &usdc_id);
+
+    let event_id = String::from_str(&env, "event_1");
+    let tier_id = String::from_str(&env, "tier_1");
+
+    // Process 3 payments
+    let pids = [
+        String::from_str(&env, "p0"),
+        String::from_str(&env, "p1"),
+        String::from_str(&env, "p2"),
+    ];
+
+    for pid in pids.iter() {
+        let buyer = Address::generate(&env);
+        usdc_token.mint(&buyer, &1000);
+        token::Client::new(&env, &usdc_id).approve(&buyer, &client.address, &1000, &9999);
+        client.process_payment(pid, &event_id, &tier_id, &buyer, &usdc_id, &1000);
+        client.confirm_payment(pid, &String::from_str(&env, "h"));
+    }
+
+    // Refund batch 1 (size 2)
+    let count1 = client.trigger_bulk_refund(&event_id, &2);
+    assert_eq!(count1, 2);
+
+    // Refund batch 2 (size 2, only 1 left)
+    let count2 = client.trigger_bulk_refund(&event_id, &2);
+    assert_eq!(count2, 1);
+
+    // Refund batch 3 (none left)
+    let count3 = client.trigger_bulk_refund(&event_id, &2);
+    assert_eq!(count3, 0);
+}

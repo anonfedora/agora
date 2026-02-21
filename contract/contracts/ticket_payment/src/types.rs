@@ -46,4 +46,5 @@ pub enum DataKey {
     TokenWhitelist(Address), // token_address -> bool
     Balances(String),        // event_id -> EventBalance (escrow tracking)
     TransferFee(String),     // event_id -> transfer_fee amount
+    BulkRefundIndex(String), // event_id -> last processed payment index
 }

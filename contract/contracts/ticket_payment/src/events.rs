@@ -9,6 +9,7 @@ pub enum AgoraEvent {
     ContractInitialized,
     ContractUpgraded,
     TicketTransferred,
+    BulkRefundProcessed,
 }
 
 #[contracttype]
@@ -53,5 +54,14 @@ pub struct TicketTransferredEvent {
     pub from: Address,
     pub to: Address,
     pub transfer_fee: i128,
+    pub timestamp: u64,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BulkRefundProcessedEvent {
+    pub event_id: String,
+    pub refund_count: u32,
+    pub total_refunded: i128,
     pub timestamp: u64,
 }
