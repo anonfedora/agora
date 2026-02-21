@@ -40,7 +40,7 @@
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOLZM"
                 },
                 {
-                  "i128": "10000000000"
+                  "i128": "5000000000"
                 }
               ]
             }
@@ -65,7 +65,7 @@
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
                 },
                 {
-                  "i128": "10000000000"
+                  "i128": "5000000000"
                 },
                 {
                   "u32": 99999
@@ -77,7 +77,6 @@
         }
       ]
     ],
-    [],
     [
       [
         "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOLZM",
@@ -88,7 +87,7 @@
               "function_name": "process_payment",
               "args": [
                 {
-                  "string": "pay_1"
+                  "string": "batch_1"
                 },
                 {
                   "string": "event_1"
@@ -103,10 +102,10 @@
                   "address": "CCABDO7UZXYE4W6GVSEGSNNZTKSLFQGKXXQTH6OX7M7GKZ4Z6CUJNGZN"
                 },
                 {
-                  "i128": "10000000000"
+                  "i128": "1000000000"
                 },
                 {
-                  "u32": 1
+                  "u32": 5
                 }
               ]
             }
@@ -115,6 +114,7 @@
         }
       ]
     ],
+    [],
     [],
     []
   ],
@@ -270,7 +270,7 @@
                         "symbol": "organizer_amount"
                       },
                       "val": {
-                        "i128": "9500000000"
+                        "i128": "4750000000"
                       }
                     },
                     {
@@ -278,7 +278,7 @@
                         "symbol": "platform_fee"
                       },
                       "val": {
-                        "i128": "500000000"
+                        "i128": "250000000"
                       }
                     },
                     {
@@ -336,7 +336,19 @@
                 "val": {
                   "vec": [
                     {
-                      "string": "pay_1"
+                      "string": "p-0"
+                    },
+                    {
+                      "string": "p-1"
+                    },
+                    {
+                      "string": "p-2"
+                    },
+                    {
+                      "string": "p-3"
+                    },
+                    {
+                      "string": "p-4"
                     }
                   ]
                 }
@@ -385,7 +397,19 @@
                 "val": {
                   "vec": [
                     {
-                      "string": "pay_1"
+                      "string": "p-0"
+                    },
+                    {
+                      "string": "p-1"
+                    },
+                    {
+                      "string": "p-2"
+                    },
+                    {
+                      "string": "p-3"
+                    },
+                    {
+                      "string": "p-4"
                     }
                   ]
                 }
@@ -484,7 +508,7 @@
                   "symbol": "Payment"
                 },
                 {
-                  "string": "pay_1"
+                  "string": "p-0"
                 }
               ]
             },
@@ -504,7 +528,7 @@
                       "symbol": "Payment"
                     },
                     {
-                      "string": "pay_1"
+                      "string": "p-0"
                     }
                   ]
                 },
@@ -516,7 +540,7 @@
                         "symbol": "amount"
                       },
                       "val": {
-                        "i128": "10000000000"
+                        "i128": "1000000000"
                       }
                     },
                     {
@@ -554,7 +578,7 @@
                         "symbol": "organizer_amount"
                       },
                       "val": {
-                        "i128": "9500000000"
+                        "i128": "950000000"
                       }
                     },
                     {
@@ -562,7 +586,7 @@
                         "symbol": "payment_id"
                       },
                       "val": {
-                        "string": "pay_1"
+                        "string": "p-0"
                       }
                     },
                     {
@@ -570,7 +594,551 @@
                         "symbol": "platform_fee"
                       },
                       "val": {
-                        "i128": "500000000"
+                        "i128": "50000000"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "status"
+                      },
+                      "val": {
+                        "vec": [
+                          {
+                            "symbol": "Pending"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "ticket_tier_id"
+                      },
+                      "val": {
+                        "string": "tier_1"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "transaction_hash"
+                      },
+                      "val": {
+                        "string": ""
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "ext": "v0"
+          },
+          4095
+        ]
+      ],
+      [
+        {
+          "contract_data": {
+            "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+            "key": {
+              "vec": [
+                {
+                  "symbol": "Payment"
+                },
+                {
+                  "string": "p-1"
+                }
+              ]
+            },
+            "durability": "persistent"
+          }
+        },
+        [
+          {
+            "last_modified_ledger_seq": 0,
+            "data": {
+              "contract_data": {
+                "ext": "v0",
+                "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+                "key": {
+                  "vec": [
+                    {
+                      "symbol": "Payment"
+                    },
+                    {
+                      "string": "p-1"
+                    }
+                  ]
+                },
+                "durability": "persistent",
+                "val": {
+                  "map": [
+                    {
+                      "key": {
+                        "symbol": "amount"
+                      },
+                      "val": {
+                        "i128": "1000000000"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "buyer_address"
+                      },
+                      "val": {
+                        "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOLZM"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "confirmed_at"
+                      },
+                      "val": "void"
+                    },
+                    {
+                      "key": {
+                        "symbol": "created_at"
+                      },
+                      "val": {
+                        "u64": "0"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "event_id"
+                      },
+                      "val": {
+                        "string": "event_1"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "organizer_amount"
+                      },
+                      "val": {
+                        "i128": "950000000"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "payment_id"
+                      },
+                      "val": {
+                        "string": "p-1"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "platform_fee"
+                      },
+                      "val": {
+                        "i128": "50000000"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "status"
+                      },
+                      "val": {
+                        "vec": [
+                          {
+                            "symbol": "Pending"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "ticket_tier_id"
+                      },
+                      "val": {
+                        "string": "tier_1"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "transaction_hash"
+                      },
+                      "val": {
+                        "string": ""
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "ext": "v0"
+          },
+          4095
+        ]
+      ],
+      [
+        {
+          "contract_data": {
+            "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+            "key": {
+              "vec": [
+                {
+                  "symbol": "Payment"
+                },
+                {
+                  "string": "p-2"
+                }
+              ]
+            },
+            "durability": "persistent"
+          }
+        },
+        [
+          {
+            "last_modified_ledger_seq": 0,
+            "data": {
+              "contract_data": {
+                "ext": "v0",
+                "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+                "key": {
+                  "vec": [
+                    {
+                      "symbol": "Payment"
+                    },
+                    {
+                      "string": "p-2"
+                    }
+                  ]
+                },
+                "durability": "persistent",
+                "val": {
+                  "map": [
+                    {
+                      "key": {
+                        "symbol": "amount"
+                      },
+                      "val": {
+                        "i128": "1000000000"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "buyer_address"
+                      },
+                      "val": {
+                        "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOLZM"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "confirmed_at"
+                      },
+                      "val": "void"
+                    },
+                    {
+                      "key": {
+                        "symbol": "created_at"
+                      },
+                      "val": {
+                        "u64": "0"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "event_id"
+                      },
+                      "val": {
+                        "string": "event_1"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "organizer_amount"
+                      },
+                      "val": {
+                        "i128": "950000000"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "payment_id"
+                      },
+                      "val": {
+                        "string": "p-2"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "platform_fee"
+                      },
+                      "val": {
+                        "i128": "50000000"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "status"
+                      },
+                      "val": {
+                        "vec": [
+                          {
+                            "symbol": "Pending"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "ticket_tier_id"
+                      },
+                      "val": {
+                        "string": "tier_1"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "transaction_hash"
+                      },
+                      "val": {
+                        "string": ""
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "ext": "v0"
+          },
+          4095
+        ]
+      ],
+      [
+        {
+          "contract_data": {
+            "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+            "key": {
+              "vec": [
+                {
+                  "symbol": "Payment"
+                },
+                {
+                  "string": "p-3"
+                }
+              ]
+            },
+            "durability": "persistent"
+          }
+        },
+        [
+          {
+            "last_modified_ledger_seq": 0,
+            "data": {
+              "contract_data": {
+                "ext": "v0",
+                "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+                "key": {
+                  "vec": [
+                    {
+                      "symbol": "Payment"
+                    },
+                    {
+                      "string": "p-3"
+                    }
+                  ]
+                },
+                "durability": "persistent",
+                "val": {
+                  "map": [
+                    {
+                      "key": {
+                        "symbol": "amount"
+                      },
+                      "val": {
+                        "i128": "1000000000"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "buyer_address"
+                      },
+                      "val": {
+                        "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOLZM"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "confirmed_at"
+                      },
+                      "val": "void"
+                    },
+                    {
+                      "key": {
+                        "symbol": "created_at"
+                      },
+                      "val": {
+                        "u64": "0"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "event_id"
+                      },
+                      "val": {
+                        "string": "event_1"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "organizer_amount"
+                      },
+                      "val": {
+                        "i128": "950000000"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "payment_id"
+                      },
+                      "val": {
+                        "string": "p-3"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "platform_fee"
+                      },
+                      "val": {
+                        "i128": "50000000"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "status"
+                      },
+                      "val": {
+                        "vec": [
+                          {
+                            "symbol": "Pending"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "ticket_tier_id"
+                      },
+                      "val": {
+                        "string": "tier_1"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "transaction_hash"
+                      },
+                      "val": {
+                        "string": ""
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "ext": "v0"
+          },
+          4095
+        ]
+      ],
+      [
+        {
+          "contract_data": {
+            "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+            "key": {
+              "vec": [
+                {
+                  "symbol": "Payment"
+                },
+                {
+                  "string": "p-4"
+                }
+              ]
+            },
+            "durability": "persistent"
+          }
+        },
+        [
+          {
+            "last_modified_ledger_seq": 0,
+            "data": {
+              "contract_data": {
+                "ext": "v0",
+                "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+                "key": {
+                  "vec": [
+                    {
+                      "symbol": "Payment"
+                    },
+                    {
+                      "string": "p-4"
+                    }
+                  ]
+                },
+                "durability": "persistent",
+                "val": {
+                  "map": [
+                    {
+                      "key": {
+                        "symbol": "amount"
+                      },
+                      "val": {
+                        "i128": "1000000000"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "buyer_address"
+                      },
+                      "val": {
+                        "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOLZM"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "confirmed_at"
+                      },
+                      "val": "void"
+                    },
+                    {
+                      "key": {
+                        "symbol": "created_at"
+                      },
+                      "val": {
+                        "u64": "0"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "event_id"
+                      },
+                      "val": {
+                        "string": "event_1"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "organizer_amount"
+                      },
+                      "val": {
+                        "i128": "950000000"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "payment_id"
+                      },
+                      "val": {
+                        "string": "p-4"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "platform_fee"
+                      },
+                      "val": {
+                        "i128": "50000000"
                       }
                     },
                     {
@@ -1034,7 +1602,7 @@
                         "symbol": "amount"
                       },
                       "val": {
-                        "i128": "10000000000"
+                        "i128": "5000000000"
                       }
                     },
                     {

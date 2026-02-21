@@ -315,10 +315,15 @@ impl EventRegistry {
         env: Env,
         event_id: String,
         tier_id: String,
+        quantity: u32,
     ) -> Result<(), EventRegistryError> {
         let ticket_payment_addr =
             storage::get_ticket_payment_contract(&env).ok_or(EventRegistryError::NotInitialized)?;
         ticket_payment_addr.require_auth();
+
+        if quantity == 0 {
+            return Err(EventRegistryError::InvalidQuantity);
+        }
 
         let mut event_info =
             storage::get_event(&env, event_id.clone()).ok_or(EventRegistryError::EventNotFound)?;
@@ -327,9 +332,17 @@ impl EventRegistry {
             return Err(EventRegistryError::EventInactive);
         }
 
+        let quantity_i128 = quantity as i128;
+
         // Check global supply limits
-        if event_info.max_supply > 0 && event_info.current_supply >= event_info.max_supply {
-            return Err(EventRegistryError::MaxSupplyExceeded);
+        if event_info.max_supply > 0 {
+            let new_total_supply = event_info
+                .current_supply
+                .checked_add(quantity_i128)
+                .ok_or(EventRegistryError::SupplyOverflow)?;
+            if new_total_supply > event_info.max_supply {
+                return Err(EventRegistryError::MaxSupplyExceeded);
+            }
         }
 
         // Get and update tier
@@ -338,20 +351,21 @@ impl EventRegistry {
             .get(tier_id.clone())
             .ok_or(EventRegistryError::TierNotFound)?;
 
-        if tier.current_sold >= tier.tier_limit {
+        let new_tier_sold = tier
+            .current_sold
+            .checked_add(quantity_i128)
+            .ok_or(EventRegistryError::SupplyOverflow)?;
+
+        if new_tier_sold > tier.tier_limit {
             return Err(EventRegistryError::TierSupplyExceeded);
         }
 
-        tier.current_sold = tier
-            .current_sold
-            .checked_add(1)
-            .ok_or(EventRegistryError::SupplyOverflow)?;
-
+        tier.current_sold = new_tier_sold;
         event_info.tiers.set(tier_id, tier);
 
         event_info.current_supply = event_info
             .current_supply
-            .checked_add(1)
+            .checked_add(quantity_i128)
             .ok_or(EventRegistryError::SupplyOverflow)?;
 
         storage::store_event(&env, event_info.clone());

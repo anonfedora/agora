@@ -20,6 +20,7 @@ pub enum EventRegistryError {
     TierNotFound = 14,
     TierSupplyExceeded = 15,
     SupplyUnderflow = 16,
+    InvalidQuantity = 17,
 }
 
 impl core::fmt::Display for EventRegistryError {
@@ -58,6 +59,9 @@ impl core::fmt::Display for EventRegistryError {
             }
             EventRegistryError::SupplyUnderflow => {
                 write!(f, "Supply counter underflow")
+            }
+            EventRegistryError::InvalidQuantity => {
+                write!(f, "Quantity must be greater than zero")
             }
         }
     }

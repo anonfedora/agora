@@ -17,6 +17,7 @@ pub enum TicketPaymentError {
     TierNotFound = 11,
     InsufficientAllowance = 12,
     TransferVerificationFailed = 13,
+    ArithmeticError = 14,
 }
 
 impl core::fmt::Display for TicketPaymentError {
@@ -42,6 +43,9 @@ impl core::fmt::Display for TicketPaymentError {
             }
             TicketPaymentError::TransferVerificationFailed => {
                 write!(f, "Transfer verification failed")
+            }
+            TicketPaymentError::ArithmeticError => {
+                write!(f, "Arithmetic error during calculation")
             }
         }
     }

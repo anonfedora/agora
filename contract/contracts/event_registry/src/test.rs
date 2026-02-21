@@ -636,7 +636,7 @@ fn test_increment_inventory_success() {
         tiers,
     });
 
-    client.increment_inventory(&event_id, &tier_id);
+    client.increment_inventory(&event_id, &tier_id, &1);
 
     let event_info = client.get_event(&event_id).unwrap();
     assert_eq!(event_info.current_supply, 1);
@@ -644,7 +644,7 @@ fn test_increment_inventory_success() {
     let tier = event_info.tiers.get(tier_id.clone()).unwrap();
     assert_eq!(tier.current_sold, 1);
 
-    client.increment_inventory(&event_id, &tier_id);
+    client.increment_inventory(&event_id, &tier_id, &1);
 
     let event_info = client.get_event(&event_id).unwrap();
     assert_eq!(event_info.current_supply, 2);
@@ -698,14 +698,14 @@ fn test_increment_inventory_max_supply_exceeded() {
         tiers,
     });
 
-    client.increment_inventory(&event_id, &tier_id);
-    client.increment_inventory(&event_id, &tier_id);
+    client.increment_inventory(&event_id, &tier_id, &1);
+    client.increment_inventory(&event_id, &tier_id, &1);
 
     let event_info = client.get_event(&event_id).unwrap();
     assert_eq!(event_info.current_supply, 2);
     assert_eq!(event_info.max_supply, 2);
 
-    let result = client.try_increment_inventory(&event_id, &tier_id);
+    let result = client.try_increment_inventory(&event_id, &tier_id, &1);
     assert_eq!(result, Err(Ok(EventRegistryError::MaxSupplyExceeded)));
 }
 
@@ -756,7 +756,7 @@ fn test_increment_inventory_unlimited_supply() {
     });
 
     for _ in 0..10 {
-        client.increment_inventory(&event_id, &tier_id);
+        client.increment_inventory(&event_id, &tier_id, &1);
     }
 
     let event_info = client.get_event(&event_id).unwrap();
@@ -781,7 +781,7 @@ fn test_increment_inventory_event_not_found() {
 
     let fake_event_id = String::from_str(&env, "nonexistent");
     let tier_id = String::from_str(&env, "general");
-    let result = client.try_increment_inventory(&fake_event_id, &tier_id);
+    let result = client.try_increment_inventory(&fake_event_id, &tier_id, &1);
     assert_eq!(result, Err(Ok(EventRegistryError::EventNotFound)));
 }
 
@@ -831,7 +831,7 @@ fn test_increment_inventory_inactive_event() {
 
     client.update_event_status(&event_id, &false);
 
-    let result = client.try_increment_inventory(&event_id, &tier_id);
+    let result = client.try_increment_inventory(&event_id, &tier_id, &1);
     assert_eq!(result, Err(Ok(EventRegistryError::EventInactive)));
 }
 
@@ -880,7 +880,7 @@ fn test_increment_inventory_persists_across_reads() {
     });
 
     for _ in 0..5 {
-        client.increment_inventory(&event_id, &tier_id);
+        client.increment_inventory(&event_id, &tier_id, &1);
     }
 
     let event_info_1 = client.get_event(&event_id).unwrap();
@@ -996,7 +996,7 @@ fn test_tier_not_found() {
     });
 
     let wrong_tier_id = String::from_str(&env, "nonexistent");
-    let result = client.try_increment_inventory(&event_id, &wrong_tier_id);
+    let result = client.try_increment_inventory(&event_id, &wrong_tier_id, &1);
     assert_eq!(result, Err(Ok(EventRegistryError::TierNotFound)));
 }
 
@@ -1046,11 +1046,11 @@ fn test_tier_supply_exceeded() {
         tiers,
     });
 
-    client.increment_inventory(&event_id, &tier_id);
-    client.increment_inventory(&event_id, &tier_id);
-    client.increment_inventory(&event_id, &tier_id);
+    client.increment_inventory(&event_id, &tier_id, &1);
+    client.increment_inventory(&event_id, &tier_id, &1);
+    client.increment_inventory(&event_id, &tier_id, &1);
 
-    let result = client.try_increment_inventory(&event_id, &tier_id);
+    let result = client.try_increment_inventory(&event_id, &tier_id, &1);
     assert_eq!(result, Err(Ok(EventRegistryError::TierSupplyExceeded)));
 }
 
@@ -1112,9 +1112,9 @@ fn test_multiple_tiers_inventory() {
         tiers,
     });
 
-    client.increment_inventory(&event_id, &general_id);
-    client.increment_inventory(&event_id, &general_id);
-    client.increment_inventory(&event_id, &vip_id);
+    client.increment_inventory(&event_id, &general_id, &1);
+    client.increment_inventory(&event_id, &general_id, &1);
+    client.increment_inventory(&event_id, &vip_id, &1);
 
     let event_info = client.get_event(&event_id).unwrap();
     assert_eq!(event_info.current_supply, 3);

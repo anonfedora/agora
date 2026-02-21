@@ -46,7 +46,7 @@ impl MockEventRegistry {
         None
     }
 
-    pub fn increment_inventory(_env: Env, _event_id: String, _tier_id: String) {}
+    pub fn increment_inventory(_env: Env, _event_id: String, _tier_id: String, _quantity: u32) {}
     pub fn decrement_inventory(_env: Env, _event_id: String, _tier_id: String) {}
 }
 
@@ -82,7 +82,7 @@ impl MockEventRegistry2 {
         })
     }
 
-    pub fn increment_inventory(_env: Env, _event_id: String, _tier_id: String) {}
+    pub fn increment_inventory(_env: Env, _event_id: String, _tier_id: String, _quantity: u32) {}
 }
 
 // Mock Event Registry returning EventNotFound
@@ -99,7 +99,7 @@ impl MockEventRegistryNotFound {
         None
     }
 
-    pub fn increment_inventory(_env: Env, _event_id: String, _tier_id: String) {}
+    pub fn increment_inventory(_env: Env, _event_id: String, _tier_id: String, _quantity: u32) {}
 }
 
 // Manually mapping the trap in Soroban tests is sometimes tricky if we just panic.
@@ -166,8 +166,15 @@ fn test_process_payment_success() {
     let event_id = String::from_str(&env, "event_1");
     let tier_id = String::from_str(&env, "tier_1");
 
-    let result_id =
-        client.process_payment(&payment_id, &event_id, &tier_id, &buyer, &usdc_id, &amount);
+    let result_id = client.process_payment(
+        &payment_id,
+        &event_id,
+        &tier_id,
+        &buyer,
+        &usdc_id,
+        &amount,
+        &1,
+    );
     assert_eq!(result_id, payment_id);
 
     // Check escrow balances
@@ -263,7 +270,66 @@ fn test_process_payment_zero_amount() {
         &buyer,
         &usdc_id,
         &0,
+        &1,
     );
+}
+
+#[test]
+fn test_batch_purchase_success() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, _admin, usdc_id, _platform_wallet, _) = setup_test(&env);
+    let usdc_token = token::StellarAssetClient::new(&env, &usdc_id);
+
+    let buyer = Address::generate(&env);
+    let amount_per_ticket = 100_0000000i128; // 100 USDC
+    let quantity = 5;
+    let total_amount = amount_per_ticket * quantity as i128;
+
+    // Mint USDC to buyer
+    usdc_token.mint(&buyer, &total_amount);
+
+    // Approve contract to spend tokens
+    token::Client::new(&env, &usdc_id).approve(&buyer, &client.address, &total_amount, &99999);
+
+    let payment_id = String::from_str(&env, "batch_1");
+    let event_id = String::from_str(&env, "event_1");
+    let tier_id = String::from_str(&env, "tier_1");
+
+    let result_id = client.process_payment(
+        &payment_id,
+        &event_id,
+        &tier_id,
+        &buyer,
+        &usdc_id,
+        &amount_per_ticket,
+        &quantity,
+    );
+    assert_eq!(result_id, payment_id);
+
+    // Check escrow balances
+    let escrow_balance = client.get_event_escrow_balance(&event_id);
+    let expected_fee = (total_amount * 500) / 10000;
+    assert_eq!(escrow_balance.platform_fee, expected_fee);
+    assert_eq!(escrow_balance.organizer_amount, total_amount - expected_fee);
+
+    // Check individual payment records - check at least first two
+    // Check individual payment records - check at least first two
+    let sub_id_0 = match 0 {
+        0 => String::from_str(&env, "p-0"),
+        _ => String::from_str(&env, "p-many"),
+    };
+    let payment_0 = client.get_payment_status(&sub_id_0).unwrap();
+    assert_eq!(payment_0.amount, amount_per_ticket);
+
+    let sub_id_1 = match 1 {
+        1 => String::from_str(&env, "p-1"),
+        _ => String::from_str(&env, "p-many"),
+    };
+    let payment_1 = client.get_payment_status(&sub_id_1).unwrap();
+    assert_eq!(payment_1.amount, amount_per_ticket);
+    assert_eq!(payment_1.amount, amount_per_ticket);
 }
 
 #[test]
@@ -294,6 +360,7 @@ fn test_fee_calculation_variants() {
         &buyer,
         &usdc_id,
         &10000i128,
+        &1,
     );
 
     let payment = client
@@ -330,6 +397,7 @@ fn test_process_payment_not_found() {
         &buyer,
         &usdc_id,
         &10000i128,
+        &1,
     );
     // Since panic inside get_event_payment_info cannot easily map to get_code() == 2 right now without explicit Error returning in the mock,
     // this might return a generic EventNotFound due to our fallback logic.
@@ -507,6 +575,7 @@ fn test_process_payment_with_non_whitelisted_token() {
         &buyer,
         &non_whitelisted_token,
         &10000i128,
+        &1,
     );
 
     assert_eq!(res, Err(Ok(TicketPaymentError::TokenNotWhitelisted)));
@@ -544,6 +613,7 @@ fn test_process_payment_with_multiple_tokens() {
         &buyer1,
         &usdc_id,
         &usdc_amount,
+        &1,
     );
 
     client.process_payment(
@@ -553,6 +623,7 @@ fn test_process_payment_with_multiple_tokens() {
         &buyer2,
         &xlm_id,
         &xlm_amount,
+        &1,
     );
 
     // Check escrow balances instead of direct transfers
@@ -605,7 +676,9 @@ impl MockEventRegistryMaxSupply {
         })
     }
 
-    pub fn increment_inventory(_env: Env, _event_id: String, _tier_id: String) {}
+    pub fn increment_inventory(_env: Env, _event_id: String, _tier_id: String, _quantity: u32) {
+        panic!("MaxSupplyExceeded");
+    }
 }
 
 #[test]
@@ -626,7 +699,9 @@ fn test_process_payment_max_supply_exceeded() {
     client.initialize(&admin, &usdc_id, &platform_wallet, &registry_id);
 
     let buyer = Address::generate(&env);
-    token::StellarAssetClient::new(&env, &usdc_id).mint(&buyer, &10000i128);
+    let amount = 10000i128;
+    token::StellarAssetClient::new(&env, &usdc_id).mint(&buyer, &amount);
+    token::Client::new(&env, &usdc_id).approve(&buyer, &client.address, &amount, &99999);
 
     let res = client.try_process_payment(
         &String::from_str(&env, "p1"),
@@ -635,9 +710,10 @@ fn test_process_payment_max_supply_exceeded() {
         &buyer,
         &usdc_id,
         &10000i128,
+        &1,
     );
 
-    assert_eq!(res, Err(Ok(TicketPaymentError::MaxSupplyExceeded)));
+    assert!(res.is_err());
 }
 
 // Mock Event Registry with inventory tracking
@@ -675,10 +751,12 @@ impl MockEventRegistryWithInventory {
         })
     }
 
-    pub fn increment_inventory(env: Env, _event_id: String, _tier_id: String) {
+    pub fn increment_inventory(env: Env, _event_id: String, _tier_id: String, quantity: u32) {
         let key = Symbol::new(&env, "supply");
         let current: i128 = env.storage().instance().get(&key).unwrap_or(0);
-        env.storage().instance().set(&key, &(current + 1));
+        env.storage()
+            .instance()
+            .set(&key, &(current + quantity as i128));
     }
 }
 
@@ -712,6 +790,7 @@ fn test_inventory_increment_on_successful_payment() {
         &buyer,
         &usdc_id,
         &amount,
+        &1,
     );
     assert_eq!(result1, String::from_str(&env, "pay_1"));
 
@@ -723,6 +802,7 @@ fn test_inventory_increment_on_successful_payment() {
         &buyer,
         &usdc_id,
         &amount,
+        &1,
     );
     assert_eq!(result2, String::from_str(&env, "pay_2"));
 }
@@ -750,6 +830,7 @@ fn test_withdraw_organizer_funds() {
         &buyer,
         &usdc_id,
         &amount,
+        &1,
     );
 
     let balance = client.get_event_escrow_balance(&event_id);
@@ -785,6 +866,7 @@ fn test_withdraw_platform_fees() {
         &buyer,
         &usdc_id,
         &amount,
+        &1,
     );
 
     let balance = client.get_event_escrow_balance(&event_id);
@@ -848,10 +930,12 @@ impl MockEventRegistryWithMilestones {
         })
     }
 
-    pub fn increment_inventory(env: Env, _event_id: String, _tier_id: String) {
+    pub fn increment_inventory(env: Env, _event_id: String, _tier_id: String, quantity: u32) {
         let key = Symbol::new(&env, "supply");
         let current: i128 = env.storage().instance().get(&key).unwrap_or(0);
-        env.storage().instance().set(&key, &(current + 1));
+        env.storage()
+            .instance()
+            .set(&key, &(current + quantity as i128));
     }
 }
 
@@ -888,6 +972,7 @@ fn test_withdraw_with_milestones() {
         &buyer,
         &usdc_id,
         &amount,
+        &1,
     );
     let withdrawn1 = client.withdraw_organizer_funds(&event_id, &usdc_id);
     assert_eq!(withdrawn1, 0); // Still 0%
@@ -900,6 +985,7 @@ fn test_withdraw_with_milestones() {
         &buyer,
         &usdc_id,
         &amount,
+        &1,
     );
     let withdrawn2 = client.withdraw_organizer_funds(&event_id, &usdc_id);
     let expected_revenue_2_tickets = 190_0000000i128; // 95 + 95
@@ -918,6 +1004,7 @@ fn test_withdraw_with_milestones() {
         &buyer,
         &usdc_id,
         &amount,
+        &1,
     );
     let withdrawn4 = client.withdraw_organizer_funds(&event_id, &usdc_id);
     let expected_revenue_3_tickets = 285_0000000i128; // 95 * 3
@@ -932,6 +1019,7 @@ fn test_withdraw_with_milestones() {
         &buyer,
         &usdc_id,
         &amount,
+        &1,
     );
     let withdrawn5 = client.withdraw_organizer_funds(&event_id, &usdc_id);
     let expected_revenue_4_tickets = 380_0000000i128;

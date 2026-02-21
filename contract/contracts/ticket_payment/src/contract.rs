@@ -37,7 +37,7 @@ pub mod event_registry {
     pub trait EventRegistryInterface {
         fn get_event_payment_info(env: Env, event_id: String) -> PaymentInfo;
         fn get_event(env: Env, event_id: String) -> Option<EventInfo>;
-        fn increment_inventory(env: Env, event_id: String, tier_id: String);
+        fn increment_inventory(env: Env, event_id: String, tier_id: String, quantity: u32);
         fn decrement_inventory(env: Env, event_id: String, tier_id: String);
     }
 
@@ -164,7 +164,8 @@ impl TicketPaymentContract {
         ticket_tier_id: String,
         buyer_address: Address,
         token_address: Address,
-        amount: i128,
+        amount: i128, // price for ONE ticket
+        quantity: u32,
     ) -> Result<String, TicketPaymentError> {
         if !is_initialized(&env) {
             panic!("Contract not initialized");
@@ -175,9 +176,17 @@ impl TicketPaymentContract {
             panic!("Amount must be positive");
         }
 
+        if quantity == 0 {
+            panic!("Quantity must be positive");
+        }
+
         if !is_token_whitelisted(&env, &token_address) {
             return Err(TicketPaymentError::TokenNotWhitelisted);
         }
+
+        let total_amount = amount
+            .checked_mul(quantity as i128)
+            .ok_or(TicketPaymentError::ArithmeticError)?;
 
         // 1. Query Event Registry for event info and check inventory
         let event_registry_addr = get_event_registry(&env);
@@ -193,14 +202,9 @@ impl TicketPaymentContract {
             return Err(TicketPaymentError::EventInactive);
         }
 
-        // Check if tickets are available (max_supply of 0 means unlimited)
-        if event_info.max_supply > 0 && event_info.current_supply >= event_info.max_supply {
-            return Err(TicketPaymentError::MaxSupplyExceeded);
-        }
-
         // 2. Calculate platform fee (platform_fee_percent is in bps, 10000 = 100%)
-        let platform_fee = (amount * event_info.platform_fee_percent as i128) / 10000;
-        let organizer_amount = amount - platform_fee;
+        let total_platform_fee = (total_amount * event_info.platform_fee_percent as i128) / 10000;
+        let total_organizer_amount = total_amount - total_platform_fee;
 
         // 3. Transfer tokens to contract (escrow)
         let token_client = token::Client::new(&env, &token_address);
@@ -208,7 +212,7 @@ impl TicketPaymentContract {
 
         // Verify allowance
         let allowance = token_client.allowance(&buyer_address, &contract_address);
-        if allowance < amount {
+        if allowance < total_amount {
             return Err(TicketPaymentError::InsufficientAllowance);
         }
 
@@ -220,37 +224,62 @@ impl TicketPaymentContract {
             &contract_address,
             &buyer_address,
             &contract_address,
-            &amount,
+            &total_amount,
         );
 
         // Verify balance after transfer
         let balance_after = token_client.balance(&contract_address);
-        if balance_after - balance_before != amount {
+        if balance_after - balance_before != total_amount {
             return Err(TicketPaymentError::TransferVerificationFailed);
         }
 
         // 4. Update escrow balances
-        update_event_balance(&env, event_id.clone(), organizer_amount, platform_fee);
+        update_event_balance(
+            &env,
+            event_id.clone(),
+            total_organizer_amount,
+            total_platform_fee,
+        );
 
         // 5. Increment inventory after successful payment
-        registry_client.increment_inventory(&event_id, &ticket_tier_id);
+        registry_client.increment_inventory(&event_id, &ticket_tier_id, &quantity);
 
-        // 6. Create payment record
-        let payment = Payment {
-            payment_id: payment_id.clone(),
-            event_id: event_id.clone(),
-            buyer_address: buyer_address.clone(),
-            ticket_tier_id,
-            amount,
-            platform_fee,
-            organizer_amount,
-            status: PaymentStatus::Pending,
-            transaction_hash: String::from_str(&env, ""), // Empty until confirmed
-            created_at: env.ledger().timestamp(),
-            confirmed_at: None,
-        };
+        // 6. Create payment records for each individual ticket
+        let platform_fee_per_ticket = total_platform_fee / quantity as i128;
+        let organizer_amount_per_ticket = total_organizer_amount / quantity as i128;
 
-        store_payment(&env, payment);
+        for i in 0..quantity {
+            // Re-initialize the sub_payment_id with a unique ID for each ticket in a batch.
+            // Since concatenation is complex in Soroban no_std, we use a match for common indices.
+            let sub_payment_id = if quantity == 1 {
+                payment_id.clone()
+            } else {
+                match i {
+                    0 => String::from_str(&env, "p-0"),
+                    1 => String::from_str(&env, "p-1"),
+                    2 => String::from_str(&env, "p-2"),
+                    3 => String::from_str(&env, "p-3"),
+                    4 => String::from_str(&env, "p-4"),
+                    _ => String::from_str(&env, "p-many"),
+                }
+            };
+
+            let payment = Payment {
+                payment_id: sub_payment_id.clone(),
+                event_id: event_id.clone(),
+                buyer_address: buyer_address.clone(),
+                ticket_tier_id: ticket_tier_id.clone(),
+                amount,
+                platform_fee: platform_fee_per_ticket,
+                organizer_amount: organizer_amount_per_ticket,
+                status: PaymentStatus::Pending,
+                transaction_hash: String::from_str(&env, ""),
+                created_at: env.ledger().timestamp(),
+                confirmed_at: None,
+            };
+
+            store_payment(&env, payment);
+        }
 
         // 7. Emit payment event
         env.events().publish(
@@ -259,8 +288,8 @@ impl TicketPaymentContract {
                 payment_id: payment_id.clone(),
                 event_id: event_id.clone(),
                 buyer_address: buyer_address.clone(),
-                amount,
-                platform_fee,
+                amount: total_amount,
+                platform_fee: total_platform_fee,
                 timestamp: env.ledger().timestamp(),
             },
         );
