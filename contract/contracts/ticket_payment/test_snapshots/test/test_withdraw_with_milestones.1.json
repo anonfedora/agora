@@ -40,7 +40,7 @@
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOLZM"
                 },
                 {
-                  "i128": "100000000000"
+                  "i128": "10000000000"
                 }
               ]
             }
@@ -65,7 +65,7 @@
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
                 },
                 {
-                  "i128": "100000000000"
+                  "i128": "10000000000"
                 },
                 {
                   "u32": 99999
@@ -102,11 +102,13 @@
                   "address": "CCABDO7UZXYE4W6GVSEGSNNZTKSLFQGKXXQTH6OX7M7GKZ4Z6CUJNGZN"
                 },
                 {
-                  "i128": "10000000000"
+                  "i128": "1000000000"
                 },
                 {
                   "u32": 1
-                }
+                },
+                "void",
+                "void"
               ]
             }
           },
@@ -161,11 +163,13 @@
                   "address": "CCABDO7UZXYE4W6GVSEGSNNZTKSLFQGKXXQTH6OX7M7GKZ4Z6CUJNGZN"
                 },
                 {
-                  "i128": "10000000000"
+                  "i128": "1000000000"
                 },
                 {
                   "u32": 1
-                }
+                },
+                "void",
+                "void"
               ]
             }
           },
@@ -242,11 +246,13 @@
                   "address": "CCABDO7UZXYE4W6GVSEGSNNZTKSLFQGKXXQTH6OX7M7GKZ4Z6CUJNGZN"
                 },
                 {
-                  "i128": "10000000000"
+                  "i128": "1000000000"
                 },
                 {
                   "u32": 1
-                }
+                },
+                "void",
+                "void"
               ]
             }
           },
@@ -301,11 +307,13 @@
                   "address": "CCABDO7UZXYE4W6GVSEGSNNZTKSLFQGKXXQTH6OX7M7GKZ4Z6CUJNGZN"
                 },
                 {
-                  "i128": "10000000000"
+                  "i128": "1000000000"
                 },
                 {
                   "u32": 1
-                }
+                },
+                "void",
+                "void"
               ]
             }
           },
@@ -489,7 +497,7 @@
                         "symbol": "organizer_amount"
                       },
                       "val": {
-                        "i128": "19000000000"
+                        "i128": "1900000000"
                       }
                     },
                     {
@@ -497,7 +505,7 @@
                         "symbol": "platform_fee"
                       },
                       "val": {
-                        "i128": "2000000000"
+                        "i128": "200000000"
                       }
                     },
                     {
@@ -505,7 +513,7 @@
                         "symbol": "total_withdrawn"
                       },
                       "val": {
-                        "i128": "19000000000"
+                        "i128": "1900000000"
                       }
                     }
                   ]
@@ -753,7 +761,7 @@
                         "symbol": "amount"
                       },
                       "val": {
-                        "i128": "10000000000"
+                        "i128": "1000000000"
                       }
                     },
                     {
@@ -791,7 +799,7 @@
                         "symbol": "organizer_amount"
                       },
                       "val": {
-                        "i128": "9500000000"
+                        "i128": "950000000"
                       }
                     },
                     {
@@ -807,7 +815,7 @@
                         "symbol": "platform_fee"
                       },
                       "val": {
-                        "i128": "500000000"
+                        "i128": "50000000"
                       }
                     },
                     {
@@ -889,7 +897,7 @@
                         "symbol": "amount"
                       },
                       "val": {
-                        "i128": "10000000000"
+                        "i128": "1000000000"
                       }
                     },
                     {
@@ -927,7 +935,7 @@
                         "symbol": "organizer_amount"
                       },
                       "val": {
-                        "i128": "9500000000"
+                        "i128": "950000000"
                       }
                     },
                     {
@@ -943,7 +951,7 @@
                         "symbol": "platform_fee"
                       },
                       "val": {
-                        "i128": "500000000"
+                        "i128": "50000000"
                       }
                     },
                     {
@@ -1025,7 +1033,7 @@
                         "symbol": "amount"
                       },
                       "val": {
-                        "i128": "10000000000"
+                        "i128": "1000000000"
                       }
                     },
                     {
@@ -1063,7 +1071,7 @@
                         "symbol": "organizer_amount"
                       },
                       "val": {
-                        "i128": "9500000000"
+                        "i128": "950000000"
                       }
                     },
                     {
@@ -1079,7 +1087,7 @@
                         "symbol": "platform_fee"
                       },
                       "val": {
-                        "i128": "500000000"
+                        "i128": "50000000"
                       }
                     },
                     {
@@ -1161,7 +1169,7 @@
                         "symbol": "amount"
                       },
                       "val": {
-                        "i128": "10000000000"
+                        "i128": "1000000000"
                       }
                     },
                     {
@@ -1199,7 +1207,7 @@
                         "symbol": "organizer_amount"
                       },
                       "val": {
-                        "i128": "9500000000"
+                        "i128": "950000000"
                       }
                     },
                     {
@@ -1215,7 +1223,7 @@
                         "symbol": "platform_fee"
                       },
                       "val": {
-                        "i128": "500000000"
+                        "i128": "50000000"
                       }
                     },
                     {
@@ -1890,7 +1898,7 @@
                         "symbol": "amount"
                       },
                       "val": {
-                        "i128": "60000000000"
+                        "i128": "6000000000"
                       }
                     },
                     {
@@ -1952,7 +1960,7 @@
                         "symbol": "amount"
                       },
                       "val": {
-                        "i128": "40000000000"
+                        "i128": "4000000000"
                       }
                     },
                     {
@@ -2022,7 +2030,7 @@
                         "symbol": "amount"
                       },
                       "val": {
-                        "i128": "60000000000"
+                        "i128": "6000000000"
                       }
                     },
                     {

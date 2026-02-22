@@ -4,7 +4,7 @@ use super::types::{Payment, PaymentStatus};
 use crate::error::TicketPaymentError;
 use soroban_sdk::{
     testutils::{Address as _, Events, Ledger},
-    token, Address, Env, IntoVal, String, Symbol, TryIntoVal,
+    token, Address, Bytes, Env, IntoVal, String, Symbol, TryIntoVal,
 };
 
 // Mock Event Registry Contract
@@ -45,11 +45,11 @@ impl MockEventRegistry {
                     tiers.set(
                         String::from_str(&env, "tier_1"),
                         event_registry::TicketTier {
-                            name: String::from_str(&env, "Tier 1"),
+                            name: String::from_str(&env, "General"),
                             price: 1000_0000000i128,
-                            early_bird_price: 1000_0000000i128,
+                            early_bird_price: 800_0000000i128,
                             early_bird_deadline: 0,
-                            tier_limit: 1000,
+                            tier_limit: 100,
                             current_sold: 0,
                             is_refundable: true,
                         },
@@ -98,11 +98,11 @@ impl MockEventRegistry2 {
                 tiers.set(
                     String::from_str(&env, "tier_1"),
                     event_registry::TicketTier {
-                        name: String::from_str(&env, "Tier 1"),
-                        price: 10000i128,
-                        early_bird_price: 10000i128,
+                        name: String::from_str(&env, "General"),
+                        price: 10000_0000000i128,
+                        early_bird_price: 8000_0000000i128,
                         early_bird_deadline: 0,
-                        tier_limit: 1000,
+                        tier_limit: 100,
                         current_sold: 0,
                         is_refundable: true,
                     },
@@ -204,6 +204,8 @@ fn test_process_payment_success() {
         &usdc_id,
         &amount,
         &1,
+        &None,
+        &None,
     );
     assert_eq!(result_id, payment_id);
 
@@ -295,12 +297,14 @@ fn test_process_payment_zero_amount() {
 
     client.process_payment(
         &payment_id,
-        &String::from_str(&env, "e1"),
-        &String::from_str(&env, "t1"),
+        &String::from_str(&env, "event_1"),
+        &String::from_str(&env, "tier_1"),
         &buyer,
         &usdc_id,
         &0,
         &1,
+        &None,
+        &None,
     );
 }
 
@@ -335,6 +339,8 @@ fn test_batch_purchase_success() {
         &usdc_id,
         &amount_per_ticket,
         &quantity,
+        &None,
+        &None,
     );
     assert_eq!(result_id, payment_id);
 
@@ -380,7 +386,7 @@ fn test_fee_calculation_variants() {
     client.initialize(&admin, &usdc_id, &platform_wallet, &registry_id);
 
     let buyer = Address::generate(&env);
-    let amount = 10000i128;
+    let amount = 10000_0000000i128;
     token::StellarAssetClient::new(&env, &usdc_id).mint(&buyer, &amount);
     token::Client::new(&env, &usdc_id).approve(&buyer, &client.address, &amount, &99999);
 
@@ -392,13 +398,15 @@ fn test_fee_calculation_variants() {
         &usdc_id,
         &amount,
         &1,
+        &None,
+        &None,
     );
 
     let payment = client
         .get_payment_status(&String::from_str(&env, "p1"))
         .unwrap();
-    assert_eq!(payment.platform_fee, 250); // 2.5% of 10000
-    assert_eq!(payment.organizer_amount, 9750);
+    assert_eq!(payment.platform_fee, 2500_000000); // 2.5% of 10000_0000000
+    assert_eq!(payment.organizer_amount, 97500_000000);
 }
 
 #[test]
@@ -419,16 +427,18 @@ fn test_process_payment_not_found() {
     client.initialize(&admin, &usdc_id, &platform_wallet, &registry_id);
 
     let buyer = Address::generate(&env);
-    token::StellarAssetClient::new(&env, &usdc_id).mint(&buyer, &10000i128);
+    token::StellarAssetClient::new(&env, &usdc_id).mint(&buyer, &1000_0000000i128);
 
     let res = client.try_process_payment(
         &String::from_str(&env, "p1"),
-        &String::from_str(&env, "e1"),
-        &String::from_str(&env, "t1"),
+        &String::from_str(&env, "event_1"),
+        &String::from_str(&env, "tier_1"),
         &buyer,
         &usdc_id,
-        &10000i128,
+        &1000_0000000i128,
         &1,
+        &None,
+        &None,
     );
     // Since panic inside get_event_payment_info cannot easily map to get_code() == 2 right now without explicit Error returning in the mock,
     // this might return a generic EventNotFound due to our fallback logic.
@@ -601,12 +611,14 @@ fn test_process_payment_with_non_whitelisted_token() {
 
     let res = client.try_process_payment(
         &String::from_str(&env, "p1"),
-        &String::from_str(&env, "e1"),
-        &String::from_str(&env, "t1"),
+        &String::from_str(&env, "event_1"),
+        &String::from_str(&env, "tier_1"),
         &buyer,
         &non_whitelisted_token,
-        &10000i128,
+        &1000_0000000i128,
         &1,
+        &None,
+        &None,
     );
 
     assert_eq!(res, Err(Ok(TicketPaymentError::TokenNotWhitelisted)));
@@ -645,6 +657,8 @@ fn test_process_payment_with_multiple_tokens() {
         &usdc_id,
         &usdc_amount,
         &1,
+        &None,
+        &None,
     );
 
     client.process_payment(
@@ -655,6 +669,8 @@ fn test_process_payment_with_multiple_tokens() {
         &xlm_id,
         &xlm_amount,
         &1,
+        &None,
+        &None,
     );
 
     // Check escrow balances instead of direct transfers
@@ -708,11 +724,11 @@ impl MockEventRegistryMaxSupply {
                 tiers.set(
                     String::from_str(&env, "tier_1"),
                     event_registry::TicketTier {
-                        name: String::from_str(&env, "Tier 1"),
-                        price: 10000i128,
-                        early_bird_price: 10000i128,
+                        name: String::from_str(&env, "General"),
+                        price: 1000_0000000i128,
+                        early_bird_price: 800_0000000i128,
                         early_bird_deadline: 0,
-                        tier_limit: 1000,
+                        tier_limit: 100,
                         current_sold: 0,
                         is_refundable: true,
                     },
@@ -751,12 +767,14 @@ fn test_process_payment_max_supply_exceeded() {
 
     let res = client.try_process_payment(
         &String::from_str(&env, "p1"),
-        &String::from_str(&env, "e1"),
-        &String::from_str(&env, "t1"),
+        &String::from_str(&env, "event_1"),
+        &String::from_str(&env, "tier_1"),
         &buyer,
         &usdc_id,
-        &10000i128,
+        &1000_0000000i128,
         &1,
+        &None,
+        &None,
     );
 
     assert!(res.is_err());
@@ -798,11 +816,11 @@ impl MockEventRegistryWithInventory {
                 tiers.set(
                     String::from_str(&env, "tier_1"),
                     event_registry::TicketTier {
-                        name: String::from_str(&env, "Tier 1"),
+                        name: String::from_str(&env, "General"),
                         price: 1000_0000000i128,
-                        early_bird_price: 1000_0000000i128,
+                        early_bird_price: 800_0000000i128,
                         early_bird_deadline: 0,
-                        tier_limit: 1000,
+                        tier_limit: 100,
                         current_sold: 0,
                         is_refundable: true,
                     },
@@ -852,6 +870,8 @@ fn test_inventory_increment_on_successful_payment() {
         &usdc_id,
         &amount,
         &1,
+        &None,
+        &None,
     );
     assert_eq!(result1, String::from_str(&env, "pay_1"));
 
@@ -864,6 +884,8 @@ fn test_inventory_increment_on_successful_payment() {
         &usdc_id,
         &amount,
         &1,
+        &None,
+        &None,
     );
     assert_eq!(result2, String::from_str(&env, "pay_2"));
 }
@@ -892,6 +914,8 @@ fn test_withdraw_organizer_funds() {
         &usdc_id,
         &amount,
         &1,
+        &None,
+        &None,
     );
 
     let balance = client.get_event_escrow_balance(&event_id);
@@ -928,6 +952,8 @@ fn test_withdraw_platform_fees() {
         &usdc_id,
         &amount,
         &1,
+        &None,
+        &None,
     );
 
     let balance = client.get_event_escrow_balance(&event_id);
@@ -992,11 +1018,11 @@ impl MockEventRegistryWithMilestones {
                 tiers.set(
                     String::from_str(&env, "tier_1"),
                     event_registry::TicketTier {
-                        name: String::from_str(&env, "Tier 1"),
-                        price: 1000_0000000i128,
-                        early_bird_price: 1000_0000000i128,
+                        name: String::from_str(&env, "General"),
+                        price: 1000_000000i128,
+                        early_bird_price: 800_000000i128,
                         early_bird_deadline: 0,
-                        tier_limit: 1000,
+                        tier_limit: 100,
                         current_sold: 0,
                         is_refundable: true,
                     },
@@ -1033,7 +1059,7 @@ fn test_withdraw_with_milestones() {
     client.initialize(&admin, &usdc_id, &platform_wallet, &registry_id);
 
     let buyer = Address::generate(&env);
-    let amount = 1000_0000000i128; // 1000 USDC per ticket
+    let amount = 100_0000000i128; // 100 USDC per ticket
     token::StellarAssetClient::new(&env, &usdc_id).mint(&buyer, &(amount * 10));
     token::Client::new(&env, &usdc_id).approve(&buyer, &client.address, &(amount * 10), &99999);
 
@@ -1049,6 +1075,8 @@ fn test_withdraw_with_milestones() {
         &usdc_id,
         &amount,
         &1,
+        &None,
+        &None,
     );
     let withdrawn1 = client.withdraw_organizer_funds(&event_id, &usdc_id);
     assert_eq!(withdrawn1, 0); // Still 0%
@@ -1062,9 +1090,11 @@ fn test_withdraw_with_milestones() {
         &usdc_id,
         &amount,
         &1,
+        &None,
+        &None,
     );
     let withdrawn2 = client.withdraw_organizer_funds(&event_id, &usdc_id);
-    let expected_revenue_2_tickets = 1900_0000000i128; // 950 + 950
+    let expected_revenue_2_tickets = 190_0000000i128; // 95 + 95
     let expected_withdraw_25 = (expected_revenue_2_tickets * 2500) / 10000;
     assert_eq!(withdrawn2, expected_withdraw_25);
 
@@ -1081,9 +1111,11 @@ fn test_withdraw_with_milestones() {
         &usdc_id,
         &amount,
         &1,
+        &None,
+        &None,
     );
     let withdrawn4 = client.withdraw_organizer_funds(&event_id, &usdc_id);
-    let expected_revenue_3_tickets = 2850_0000000i128; // 950 * 3
+    let expected_revenue_3_tickets = 285_0000000i128; // 95 * 3
     let expected_withdraw_25_total = (expected_revenue_3_tickets * 2500) / 10000;
     assert_eq!(withdrawn4, expected_withdraw_25_total - withdrawn2);
 
@@ -1096,9 +1128,11 @@ fn test_withdraw_with_milestones() {
         &usdc_id,
         &amount,
         &1,
+        &None,
+        &None,
     );
     let withdrawn5 = client.withdraw_organizer_funds(&event_id, &usdc_id);
-    let expected_revenue_4_tickets = 3800_0000000i128;
+    let expected_revenue_4_tickets = 380_0000000i128;
     let expected_withdraw_50_total = (expected_revenue_4_tickets * 5000) / 10000;
     assert_eq!(
         withdrawn5,
@@ -1337,6 +1371,8 @@ fn test_early_bird_pricing_active() {
         &usdc_id,
         &1000_0000000i128, // Paying early bird price
         &1,
+        &None,
+        &None,
     );
 
     assert_eq!(result_id, payment_id);
@@ -1378,6 +1414,8 @@ fn test_early_bird_pricing_expired() {
         &usdc_id,
         &1000_0000000i128, // Trying early bird price
         &1,
+        &None,
+        &None,
     );
     assert_eq!(result_fail, Err(Ok(TicketPaymentError::InvalidPrice)));
 
@@ -1391,6 +1429,8 @@ fn test_early_bird_pricing_expired() {
         &usdc_id,
         &1500_0000000i128, // Paying standard price
         &1,
+        &None,
+        &None,
     );
     assert_eq!(result_success, payment_id_success);
 }
@@ -1433,6 +1473,8 @@ fn test_price_switched_event_emitted_exactly_once() {
         &usdc_id,
         &1000_0000000i128,
         &1,
+        &None,
+        &None,
     );
 
     // After setting ledger exactly at the deadline (still early bird)
@@ -1445,6 +1487,8 @@ fn test_price_switched_event_emitted_exactly_once() {
         &usdc_id,
         &1000_0000000i128, // exactly at deadline uses early bird
         &1,
+        &None,
+        &None,
     );
 
     // Setting ledger past deadline triggers switch
@@ -1457,6 +1501,8 @@ fn test_price_switched_event_emitted_exactly_once() {
         &usdc_id,
         &1500_0000000i128,
         &1,
+        &None,
+        &None,
     );
 
     // And another payment long past deadline
@@ -1469,6 +1515,8 @@ fn test_price_switched_event_emitted_exactly_once() {
         &usdc_id,
         &1500_0000000i128,
         &1,
+        &None,
+        &None,
     );
 
     // Now count the occurrences of PriceSwitchedEvent in the logs
@@ -1528,6 +1576,8 @@ fn test_bulk_refund_success() {
         &usdc_id,
         &ticket_price,
         &1,
+        &None,
+        &None,
     );
 
     usdc_token.mint(&buyer2, &ticket_price);
@@ -1540,6 +1590,8 @@ fn test_bulk_refund_success() {
         &usdc_id,
         &ticket_price,
         &1,
+        &None,
+        &None,
     );
 
     // Confirm them
@@ -1614,6 +1666,8 @@ fn test_bulk_refund_batching() {
             &usdc_id,
             &ticket_price,
             &1,
+            &None,
+            &None,
         );
         client.confirm_payment(pid, &String::from_str(&env, "h"));
     }
@@ -1629,4 +1683,260 @@ fn test_bulk_refund_batching() {
     // Refund batch 3 (none left)
     let count3 = client.trigger_bulk_refund(&event_id, &2);
     assert_eq!(count3, 0);
+}
+
+// ── Discount Code Tests ────────────────────────────────────────────────────────
+
+/// A mock event registry that returns a *fixed*, predictable organizer address
+/// stored in instance storage. This lets tests call `add_discount_hashes` with
+/// the correct signer.
+#[soroban_sdk::contract]
+pub struct MockEventRegistryWithOrganizer;
+
+#[soroban_sdk::contractimpl]
+impl MockEventRegistryWithOrganizer {
+    pub fn get_event_payment_info(env: Env, _event_id: String) -> event_registry::PaymentInfo {
+        event_registry::PaymentInfo {
+            payment_address: Address::generate(&env),
+            platform_fee_percent: 500,
+        }
+    }
+
+    pub fn set_organizer(env: Env, organizer: Address) {
+        env.storage()
+            .instance()
+            .set(&Symbol::new(&env, "org"), &organizer);
+    }
+
+    pub fn get_event(env: Env, event_id: String) -> Option<event_registry::EventInfo> {
+        let organizer: Address = env
+            .storage()
+            .instance()
+            .get(&Symbol::new(&env, "org"))
+            .unwrap_or_else(|| Address::generate(&env));
+
+        Some(event_registry::EventInfo {
+            event_id,
+            organizer_address: organizer,
+            payment_address: Address::generate(&env),
+            platform_fee_percent: 500,
+            is_active: true,
+            created_at: 0,
+            metadata_cid: String::from_str(
+                &env,
+                "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+            ),
+            max_supply: 0,
+            current_supply: 0,
+            milestone_plan: None,
+            tiers: {
+                let mut tiers = soroban_sdk::Map::new(&env);
+                tiers.set(
+                    String::from_str(&env, "tier_1"),
+                    event_registry::TicketTier {
+                        name: String::from_str(&env, "General"),
+                        price: 1000_0000000i128,
+                        early_bird_price: 800_0000000i128,
+                        early_bird_deadline: 0,
+                        tier_limit: 100,
+                        current_sold: 0,
+                        is_refundable: true,
+                    },
+                );
+                tiers
+            },
+        })
+    }
+
+    pub fn increment_inventory(_env: Env, _event_id: String, _tier_id: String, _quantity: u32) {}
+    pub fn decrement_inventory(_env: Env, _event_id: String, _tier_id: String) {}
+}
+
+/// Helper: set up a payment contract wired to MockEventRegistryWithOrganizer.
+/// Returns (client, organizer, registry_id, usdc_id).
+fn setup_discount_test(
+    env: &Env,
+) -> (
+    TicketPaymentContractClient<'static>,
+    Address,
+    Address,
+    Address,
+) {
+    let organizer = Address::generate(env);
+    let registry_id = env.register(MockEventRegistryWithOrganizer, ());
+
+    // Store the organizer address inside the mock registry
+    env.mock_all_auths();
+    // Simpler approach: invoke set_organizer via env.as_contract
+    env.as_contract(&registry_id, || {
+        env.storage()
+            .instance()
+            .set(&soroban_sdk::Symbol::new(env, "org"), &organizer);
+    });
+
+    let contract_id = env.register(TicketPaymentContract, ());
+    let client = TicketPaymentContractClient::new(env, &contract_id);
+
+    let usdc_id = env
+        .register_stellar_asset_contract_v2(Address::generate(env))
+        .address();
+    let platform_wallet = Address::generate(env);
+    let admin = Address::generate(env);
+
+    client.initialize(&admin, &usdc_id, &platform_wallet, &registry_id);
+
+    (client, organizer, registry_id, usdc_id)
+}
+
+#[test]
+fn test_add_discount_hashes_and_invalid_code_rejected() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, _organizer, _registry_id, usdc_id) = setup_discount_test(&env);
+
+    let event_id = String::from_str(&env, "event_1");
+
+    // Register one hash: sha256("SUMMER10")
+    let preimage = Bytes::from_slice(&env, b"SUMMER10");
+    let valid_hash: soroban_sdk::BytesN<32> = env.crypto().sha256(&preimage).into();
+    client.add_discount_hashes(&event_id, &soroban_sdk::vec![&env, valid_hash]);
+
+    // An unregistered code should be rejected
+    let buyer = Address::generate(&env);
+    let amount = 10_000_000_000_i128;
+    token::StellarAssetClient::new(&env, &usdc_id).mint(&buyer, &amount);
+    token::Client::new(&env, &usdc_id).approve(&buyer, &client.address, &amount, &99999);
+
+    let wrong_preimage = Bytes::from_slice(&env, b"WRONG_CODE");
+    let res = client.try_process_payment(
+        &String::from_str(&env, "pay_1"),
+        &event_id,
+        &String::from_str(&env, "tier_1"),
+        &buyer,
+        &usdc_id,
+        &amount,
+        &1,
+        &Some(wrong_preimage),
+        &None,
+    );
+    assert_eq!(res, Err(Ok(TicketPaymentError::InvalidDiscountCode)));
+}
+
+#[test]
+fn test_process_payment_with_valid_discount_code() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, _organizer, _registry_id, usdc_id) = setup_discount_test(&env);
+
+    let event_id = String::from_str(&env, "event_1");
+    let preimage = Bytes::from_slice(&env, b"SUMMER10");
+    let valid_hash: soroban_sdk::BytesN<32> = env.crypto().sha256(&preimage).into();
+    client.add_discount_hashes(&event_id, &soroban_sdk::vec![&env, valid_hash]);
+
+    let buyer = Address::generate(&env);
+    let full_amount = 10_000_000_000_i128;
+    let discounted_amount = full_amount * 90 / 100; // 10% off
+
+    // Fund with only what the discounted price requires
+    token::StellarAssetClient::new(&env, &usdc_id).mint(&buyer, &discounted_amount);
+    token::Client::new(&env, &usdc_id).approve(&buyer, &client.address, &discounted_amount, &99999);
+
+    let result = client.process_payment(
+        &String::from_str(&env, "pay_1"),
+        &event_id,
+        &String::from_str(&env, "tier_1"),
+        &buyer,
+        &usdc_id,
+        &full_amount,
+        &1,
+        &Some(preimage),
+        &None,
+    );
+    assert_eq!(result, String::from_str(&env, "pay_1"));
+
+    // Verify final escrow
+    // platform_fee = 5% of discounted_amount (9_000_000_000) = 450_000_000
+    let escrow = client.get_event_escrow_balance(&event_id);
+    assert_eq!(escrow.platform_fee, 450_000_000);
+}
+
+#[test]
+fn test_discount_code_one_time_use() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, _organizer, _registry_id, usdc_id) = setup_discount_test(&env);
+
+    let event_id = String::from_str(&env, "event_1");
+    let preimage = Bytes::from_slice(&env, b"ONCE_ONLY");
+    let valid_hash: soroban_sdk::BytesN<32> = env.crypto().sha256(&preimage).into();
+    client.add_discount_hashes(&event_id, &soroban_sdk::vec![&env, valid_hash]);
+
+    let buyer = Address::generate(&env);
+    let full_amount = 10_000_000_000_i128; // 1000 USDC
+    let discounted = full_amount * 90 / 100;
+
+    // Fund enough for two discounted purchases
+    token::StellarAssetClient::new(&env, &usdc_id).mint(&buyer, &(discounted * 2));
+    token::Client::new(&env, &usdc_id).approve(&buyer, &client.address, &(discounted * 2), &99999);
+
+    // First use – should succeed
+    client.process_payment(
+        &String::from_str(&env, "pay_first"),
+        &event_id,
+        &String::from_str(&env, "tier_1"),
+        &buyer,
+        &usdc_id,
+        &full_amount,
+        &1,
+        &Some(Bytes::from_slice(&env, b"ONCE_ONLY")),
+        &None,
+    );
+
+    // Second use of the same code – must fail
+    let res = client.try_process_payment(
+        &String::from_str(&env, "pay_second"),
+        &event_id,
+        &String::from_str(&env, "tier_1"),
+        &buyer,
+        &usdc_id,
+        &full_amount,
+        &1,
+        &Some(Bytes::from_slice(&env, b"ONCE_ONLY")),
+        &None,
+    );
+    assert_eq!(res, Err(Ok(TicketPaymentError::DiscountCodeAlreadyUsed)));
+}
+
+#[test]
+fn test_process_payment_no_code_unchanged() {
+    // Verify that passing None leaves the pricing completely untouched (regression guard).
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, _organizer, _registry_id, usdc_id) = setup_discount_test(&env);
+
+    let buyer = Address::generate(&env);
+    let amount = 1000_0000000i128; // 1000 USDC
+    token::StellarAssetClient::new(&env, &usdc_id).mint(&buyer, &amount);
+    token::Client::new(&env, &usdc_id).approve(&buyer, &client.address, &amount, &99999);
+
+    client.process_payment(
+        &String::from_str(&env, "pay_nodiscount"),
+        &String::from_str(&env, "event_1"),
+        &String::from_str(&env, "tier_1"),
+        &buyer,
+        &usdc_id,
+        &amount,
+        &1,
+        &None,
+        &None,
+    );
+
+    let escrow = client.get_event_escrow_balance(&String::from_str(&env, "event_1"));
+    let expected_fee = (amount * 500) / 10000;
+    assert_eq!(escrow.platform_fee, expected_fee);
+    assert_eq!(escrow.organizer_amount, amount - expected_fee);
 }
