@@ -21,6 +21,8 @@ pub enum TicketPaymentError {
     SelfReferralNotAllowed = 15,
     PriceMismatch = 16,
     InvalidPrice = 17,
+    InvalidDiscountCode = 18,
+    DiscountCodeAlreadyUsed = 19,
 }
 
 impl core::fmt::Display for TicketPaymentError {
@@ -61,6 +63,12 @@ impl core::fmt::Display for TicketPaymentError {
                     f,
                     "Paid amount does not match the active price for this tier"
                 )
+            }
+            TicketPaymentError::InvalidDiscountCode => {
+                write!(f, "Discount code is invalid or not registered")
+            }
+            TicketPaymentError::DiscountCodeAlreadyUsed => {
+                write!(f, "Discount code has already been used")
             }
         }
     }

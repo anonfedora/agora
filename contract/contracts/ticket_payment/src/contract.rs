@@ -1,8 +1,9 @@
 extern crate alloc;
 use crate::storage::{
-    add_payment_to_buyer_index, add_token_to_whitelist, get_admin, get_bulk_refund_index,
-    get_event_balance, get_event_payments, get_event_registry, get_payment, get_platform_wallet,
-    get_transfer_fee, is_initialized, is_token_whitelisted, remove_payment_from_buyer_index,
+    add_discount_hash, add_payment_to_buyer_index, add_token_to_whitelist, get_admin,
+    get_bulk_refund_index, get_event_balance, get_event_payments, get_event_registry, get_payment,
+    get_platform_wallet, get_transfer_fee, is_discount_hash_used, is_discount_hash_valid,
+    is_initialized, is_token_whitelisted, mark_discount_hash_used, remove_payment_from_buyer_index,
     remove_token_from_whitelist, set_admin, set_bulk_refund_index, set_event_registry,
     set_initialized, set_platform_wallet, set_transfer_fee, set_usdc_token, store_payment,
     update_event_balance, update_payment_status,
@@ -11,12 +12,14 @@ use crate::types::{Payment, PaymentStatus};
 use crate::{
     error::TicketPaymentError,
     events::{
-        AgoraEvent, BulkRefundProcessedEvent, ContractUpgraded, InitializationEvent,
-        PaymentProcessedEvent, PaymentStatusChangedEvent, PriceSwitchedEvent,
+        AgoraEvent, BulkRefundProcessedEvent, ContractUpgraded, DiscountCodeAppliedEvent,
+        InitializationEvent, PaymentProcessedEvent, PaymentStatusChangedEvent, PriceSwitchedEvent,
         TicketTransferredEvent,
     },
 };
-use soroban_sdk::{contract, contractimpl, token, Address, BytesN, Env, String, Symbol};
+use soroban_sdk::{
+    contract, contractimpl, token, Address, Bytes, BytesN, Env, String, Symbol, Vec,
+};
 
 // Event Registry interface
 pub mod event_registry {
@@ -85,6 +88,7 @@ pub struct TicketPaymentContract;
 
 #[contractimpl]
 #[allow(deprecated)]
+#[allow(clippy::too_many_arguments)]
 impl TicketPaymentContract {
     /// Initializes the contract with necessary configurations.
     pub fn initialize(
@@ -162,6 +166,7 @@ impl TicketPaymentContract {
     }
 
     /// Processes a payment for an event ticket.
+    #[allow(clippy::too_many_arguments)]
     pub fn process_payment(
         env: Env,
         payment_id: String,
@@ -171,6 +176,7 @@ impl TicketPaymentContract {
         token_address: Address,
         amount: i128, // price for ONE ticket
         quantity: u32,
+        code_preimage: Option<Bytes>,
         referrer: Option<Address>,
     ) -> Result<String, TicketPaymentError> {
         if !is_initialized(&env) {
@@ -200,6 +206,24 @@ impl TicketPaymentContract {
             .checked_mul(quantity as i128)
             .ok_or(TicketPaymentError::ArithmeticError)?;
 
+        // Optionally apply a discount code (10% off)
+        let (effective_total, discount_code_hash) = if let Some(preimage) = code_preimage {
+            let hash: soroban_sdk::BytesN<32> = env.crypto().sha256(&preimage).into();
+            if !is_discount_hash_valid(&env, &hash) {
+                return Err(TicketPaymentError::InvalidDiscountCode);
+            }
+            if is_discount_hash_used(&env, &hash) {
+                return Err(TicketPaymentError::DiscountCodeAlreadyUsed);
+            }
+            // 10% discount
+            let discounted = total_amount
+                .checked_mul(90)
+                .and_then(|v| v.checked_div(100))
+                .ok_or(TicketPaymentError::ArithmeticError)?;
+            (discounted, Some(hash))
+        } else {
+            (total_amount, None)
+        };
         // 1. Query Event Registry for event info and check inventory
         let event_registry_addr = get_event_registry(&env);
         let registry_client = event_registry::Client::new(&env, &event_registry_addr);
@@ -253,8 +277,8 @@ impl TicketPaymentContract {
 
         // 2. Calculate platform fee (platform_fee_percent is in bps, 10000 = 100%)
         let mut total_platform_fee =
-            (total_amount * event_info.platform_fee_percent as i128) / 10000;
-        let total_organizer_amount = total_amount - total_platform_fee;
+            (effective_total * event_info.platform_fee_percent as i128) / 10000;
+        let total_organizer_amount = effective_total - total_platform_fee;
 
         let referral_reward = if referrer.is_some() {
             let reward = (total_platform_fee * 20) / 100; // 20%
@@ -270,7 +294,7 @@ impl TicketPaymentContract {
 
         // Verify allowance
         let allowance = token_client.allowance(&buyer_address, &contract_address);
-        if allowance < total_amount {
+        if allowance < effective_total {
             return Err(TicketPaymentError::InsufficientAllowance);
         }
 
@@ -282,12 +306,12 @@ impl TicketPaymentContract {
             &contract_address,
             &buyer_address,
             &contract_address,
-            &total_amount,
+            &effective_total,
         );
 
         // Verify balance after transfer
         let balance_after = token_client.balance(&contract_address);
-        if balance_after - balance_before != total_amount {
+        if balance_after - balance_before != effective_total {
             return Err(TicketPaymentError::TransferVerificationFailed);
         }
 
@@ -306,10 +330,15 @@ impl TicketPaymentContract {
             total_platform_fee,
         );
 
-        // 5. Increment inventory after successful payment
+        // 5. Mark the discount code as used (after funds are safely transferred)
+        if let Some(hash) = discount_code_hash.clone() {
+            mark_discount_hash_used(&env, hash);
+        }
+
+        // 6. Increment inventory after successful payment
         registry_client.increment_inventory(&event_id, &ticket_tier_id, &quantity);
 
-        // 6. Create payment records for each individual ticket
+        // 7. Create payment records for each individual ticket
         let platform_fee_per_ticket = total_platform_fee / quantity as i128;
         let organizer_amount_per_ticket = total_organizer_amount / quantity as i128;
 
@@ -346,18 +375,33 @@ impl TicketPaymentContract {
             store_payment(&env, payment);
         }
 
-        // 7. Emit payment event
+        // 8. Emit payment event
         env.events().publish(
             (AgoraEvent::PaymentProcessed,),
             PaymentProcessedEvent {
                 payment_id: payment_id.clone(),
                 event_id: event_id.clone(),
                 buyer_address: buyer_address.clone(),
-                amount: total_amount,
+                amount: effective_total,
                 platform_fee: total_platform_fee,
                 timestamp: env.ledger().timestamp(),
             },
         );
+
+        // 9. Emit discount applied event if a code was used
+        if let Some(hash) = discount_code_hash {
+            let discount_amount = total_amount - effective_total;
+            env.events().publish(
+                (AgoraEvent::DiscountCodeApplied,),
+                DiscountCodeAppliedEvent {
+                    payment_id: payment_id.clone(),
+                    event_id: event_id.clone(),
+                    code_hash: hash,
+                    discount_amount,
+                    timestamp: env.ledger().timestamp(),
+                },
+            );
+        }
 
         Ok(payment_id)
     }
@@ -744,6 +788,37 @@ impl TicketPaymentContract {
         );
 
         Ok(processed_count)
+    }
+
+    /// Allows an event organizer to register a list of SHA-256 hashed discount codes.
+    /// When a buyer provides the raw preimage during `process_payment`, the contract hashes
+    /// it on-chain, validates against this registry, applies a 10% discount, and marks
+    /// the code as used (one-time use).
+    pub fn add_discount_hashes(
+        env: Env,
+        event_id: String,
+        hashes: Vec<BytesN<32>>,
+    ) -> Result<(), TicketPaymentError> {
+        if !is_initialized(&env) {
+            panic!("Contract not initialized");
+        }
+
+        let event_registry_addr = get_event_registry(&env);
+        let registry_client = event_registry::Client::new(&env, &event_registry_addr);
+
+        let event_info = match registry_client.try_get_event(&event_id) {
+            Ok(Ok(Some(info))) => info,
+            _ => return Err(TicketPaymentError::EventNotFound),
+        };
+
+        // Only the event organizer may upload discount codes for their event
+        event_info.organizer_address.require_auth();
+
+        for hash in hashes.iter() {
+            add_discount_hash(&env, hash);
+        }
+
+        Ok(())
     }
 }
 
