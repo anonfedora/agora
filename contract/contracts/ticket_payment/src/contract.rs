@@ -84,7 +84,7 @@ pub mod event_registry {
 pub struct TicketPaymentContract;
 
 #[contractimpl]
-#[allow(deprecated)]
+#[allow(clippy::too_many_arguments)]
 impl TicketPaymentContract {
     /// Initializes the contract with necessary configurations.
     pub fn initialize(
@@ -112,6 +112,7 @@ impl TicketPaymentContract {
         // Whitelist USDC by default
         add_token_to_whitelist(&env, &usdc_token);
 
+        #[allow(deprecated)]
         env.events().publish(
             (AgoraEvent::ContractInitialized,),
             InitializationEvent {
@@ -136,6 +137,7 @@ impl TicketPaymentContract {
         env.deployer()
             .update_current_contract_wasm(new_wasm_hash.clone());
 
+        #[allow(deprecated)]
         env.events().publish(
             (AgoraEvent::ContractUpgraded,),
             ContractUpgraded {
@@ -162,6 +164,7 @@ impl TicketPaymentContract {
     }
 
     /// Processes a payment for an event ticket.
+    #[allow(clippy::too_many_arguments)]
     pub fn process_payment(
         env: Env,
         payment_id: String,
@@ -232,6 +235,7 @@ impl TicketPaymentContract {
             let has_switched: bool = env.storage().persistent().get(&switch_key).unwrap_or(false);
             if !has_switched {
                 env.storage().persistent().set(&switch_key, &true);
+                #[allow(deprecated)]
                 env.events().publish(
                     (AgoraEvent::PriceSwitched,),
                     PriceSwitchedEvent {
@@ -324,6 +328,7 @@ impl TicketPaymentContract {
         }
 
         // 7. Emit payment event
+        #[allow(deprecated)]
         env.events().publish(
             (AgoraEvent::PaymentProcessed,),
             PaymentProcessedEvent {
@@ -359,6 +364,7 @@ impl TicketPaymentContract {
         }
 
         // Emit confirmation event
+        #[allow(deprecated)]
         env.events().publish(
             (AgoraEvent::PaymentStatusChanged,),
             PaymentStatusChangedEvent {
@@ -413,6 +419,7 @@ impl TicketPaymentContract {
         store_payment(&env, payment);
 
         // Emit confirmation event
+        #[allow(deprecated)]
         env.events().publish(
             (AgoraEvent::PaymentStatusChanged,),
             PaymentStatusChangedEvent {
@@ -620,6 +627,7 @@ impl TicketPaymentContract {
         add_payment_to_buyer_index(&env, to.clone(), payment_id.clone());
 
         // Emit transfer event
+        #[allow(deprecated)]
         env.events().publish(
             (AgoraEvent::TicketTransferred,),
             TicketTransferredEvent {
@@ -710,6 +718,7 @@ impl TicketPaymentContract {
         set_bulk_refund_index(&env, event_id.clone(), end_index);
 
         // Emit bulk refund event
+        #[allow(deprecated)]
         env.events().publish(
             (AgoraEvent::BulkRefundProcessed,),
             BulkRefundProcessedEvent {
