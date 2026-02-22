@@ -21,6 +21,8 @@ pub enum EventRegistryError {
     TierSupplyExceeded = 15,
     SupplyUnderflow = 16,
     InvalidQuantity = 17,
+    OrganizerBlacklisted = 18,
+    OrganizerNotBlacklisted = 19,
 }
 
 impl core::fmt::Display for EventRegistryError {
@@ -62,6 +64,12 @@ impl core::fmt::Display for EventRegistryError {
             }
             EventRegistryError::InvalidQuantity => {
                 write!(f, "Quantity must be greater than zero")
+            }
+            EventRegistryError::OrganizerBlacklisted => {
+                write!(f, "Organizer is blacklisted and cannot perform this action")
+            }
+            EventRegistryError::OrganizerNotBlacklisted => {
+                write!(f, "Organizer is not currently blacklisted")
             }
         }
     }

@@ -79,6 +79,22 @@ pub struct EventRegistrationArgs {
     pub tiers: Map<String, TicketTier>,
 }
 
+/// Audit log entry for blacklist actions
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BlacklistAuditEntry {
+    /// The organizer address that was blacklisted or removed from blacklist
+    pub organizer_address: Address,
+    /// Whether the organizer was added (true) or removed (false) from blacklist
+    pub added_to_blacklist: bool,
+    /// The admin who performed the action
+    pub admin_address: Address,
+    /// Reason for the blacklist action
+    pub reason: String,
+    /// Timestamp when the action was performed
+    pub timestamp: u64,
+}
+
 /// Storage keys for the Event Registry contract.
 #[contracttype]
 pub enum DataKey {
@@ -96,4 +112,8 @@ pub enum DataKey {
     OrganizerEvents(Address),
     /// The authorized TicketPayment contract address for inventory updates
     TicketPaymentContract,
+    /// Mapping of organizer address to blacklist status (Persistent)
+    BlacklistedOrganizer(Address),
+    /// List of blacklisted organizer addresses for audit purposes (Persistent)
+    BlacklistLog,
 }

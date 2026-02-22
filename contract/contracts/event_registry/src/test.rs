@@ -1125,3 +1125,214 @@ fn test_multiple_tiers_inventory() {
     let vip_tier = event_info.tiers.get(vip_id).unwrap();
     assert_eq!(vip_tier.current_sold, 1);
 }
+
+#[test]
+fn test_blacklist_organizer() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let contract_id = env.register(EventRegistry, ());
+    let client = EventRegistryClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let platform_wallet = Address::generate(&env);
+    let organizer = Address::generate(&env);
+
+    client.initialize(&admin, &platform_wallet, &500);
+
+    // Blacklist organizer as admin
+    let reason = String::from_str(&env, "Fraudulent activity detected");
+    client.blacklist_organizer(&organizer, &reason);
+
+    // Verify organizer is blacklisted
+    assert!(client.is_organizer_blacklisted(&organizer));
+
+    // Verify audit log entry
+    let audit_log = client.get_blacklist_audit_log();
+    assert_eq!(audit_log.len(), 1);
+
+    let audit_entry = audit_log.get(0).unwrap();
+    assert!(audit_entry.added_to_blacklist);
+    assert_eq!(audit_entry.organizer_address, organizer);
+    assert_eq!(audit_entry.admin_address, admin);
+    assert_eq!(audit_entry.reason, reason);
+}
+
+#[test]
+fn test_blacklist_prevents_event_registration() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let contract_id = env.register(EventRegistry, ());
+    let client = EventRegistryClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let platform_wallet = Address::generate(&env);
+    let organizer = Address::generate(&env);
+    let payment_addr = Address::generate(&env);
+
+    client.initialize(&admin, &platform_wallet, &500);
+
+    // Blacklist organizer first
+    let reason = String::from_str(&env, "Suspicious activity");
+    client.blacklist_organizer(&organizer, &reason);
+
+    // Try to register event - should fail
+    let event_id = String::from_str(&env, "test_event");
+    let metadata_cid = String::from_str(&env, "bafybeigdyrzt5spx7udh7f");
+    let tiers = Map::new(&env);
+
+    let result = client.try_register_event(&EventRegistrationArgs {
+        event_id: event_id.clone(),
+        organizer_address: organizer,
+        payment_address: payment_addr,
+        metadata_cid,
+        max_supply: 100,
+        milestone_plan: None,
+        tiers,
+    });
+
+    assert_eq!(result, Err(Ok(EventRegistryError::OrganizerBlacklisted)));
+}
+
+#[test]
+fn test_remove_from_blacklist() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let contract_id = env.register(EventRegistry, ());
+    let client = EventRegistryClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let platform_wallet = Address::generate(&env);
+    let organizer = Address::generate(&env);
+
+    client.initialize(&admin, &platform_wallet, &500);
+
+    // Blacklist organizer
+    let reason = String::from_str(&env, "Initial blacklist");
+    client.blacklist_organizer(&organizer, &reason);
+    assert!(client.is_organizer_blacklisted(&organizer));
+
+    // Remove from blacklist
+    let removal_reason = String::from_str(&env, "Investigation completed");
+    client.remove_from_blacklist(&organizer, &removal_reason);
+
+    // Verify organizer is no longer blacklisted
+    assert!(!client.is_organizer_blacklisted(&organizer));
+
+    // Verify audit log has both entries
+    let audit_log = client.get_blacklist_audit_log();
+    assert_eq!(audit_log.len(), 2);
+
+    // First entry - addition
+    let add_entry = audit_log.get(0).unwrap();
+    assert!(add_entry.added_to_blacklist);
+
+    // Second entry - removal
+    let remove_entry = audit_log.get(1).unwrap();
+    assert!(!remove_entry.added_to_blacklist);
+    assert_eq!(remove_entry.reason, removal_reason);
+}
+
+#[test]
+fn test_blacklist_suspends_active_events() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let contract_id = env.register(EventRegistry, ());
+    let client = EventRegistryClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let platform_wallet = Address::generate(&env);
+    let organizer = Address::generate(&env);
+    let payment_addr = Address::generate(&env);
+
+    client.initialize(&admin, &platform_wallet, &500);
+
+    // Register an active event
+    let event_id = String::from_str(&env, "test_event");
+    let metadata_cid = String::from_str(
+        &env,
+        "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+    );
+    let tiers = Map::new(&env);
+
+    client.register_event(&EventRegistrationArgs {
+        event_id: event_id.clone(),
+        organizer_address: organizer.clone(),
+        payment_address: payment_addr,
+        metadata_cid,
+        max_supply: 100,
+        milestone_plan: None,
+        tiers,
+    });
+
+    // Verify event is active
+    let event_info = client.get_event(&event_id).unwrap();
+    assert!(event_info.is_active);
+
+    // Blacklist organizer - should suspend the event
+    let reason = String::from_str(&env, "Fraud detected");
+    client.blacklist_organizer(&organizer, &reason);
+
+    // Verify event is now suspended
+    let event_info = client.get_event(&event_id).unwrap();
+    assert!(!event_info.is_active);
+}
+
+#[test]
+#[should_panic] // Authentication failure
+fn test_blacklist_unauthorized_fails() {
+    let env = Env::default();
+    let contract_id = env.register(EventRegistry, ());
+    let client = EventRegistryClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let platform_wallet = Address::generate(&env);
+    let organizer = Address::generate(&env);
+
+    client.initialize(&admin, &platform_wallet, &500);
+
+    // Try to blacklist organizer without admin auth - should panic
+    let reason = String::from_str(&env, "Malicious attempt");
+    client.blacklist_organizer(&organizer, &reason);
+}
+
+#[test]
+fn test_double_blacklist_fails() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let contract_id = env.register(EventRegistry, ());
+    let client = EventRegistryClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let platform_wallet = Address::generate(&env);
+    let organizer = Address::generate(&env);
+
+    client.initialize(&admin, &platform_wallet, &500);
+
+    // Blacklist organizer once
+    let reason = String::from_str(&env, "First blacklist");
+    client.blacklist_organizer(&organizer, &reason);
+
+    // Try to blacklist again - should fail
+    let reason2 = String::from_str(&env, "Second blacklist");
+    let result = client.try_blacklist_organizer(&organizer, &reason2);
+    assert_eq!(result, Err(Ok(EventRegistryError::OrganizerBlacklisted)));
+}
+
+#[test]
+fn test_remove_non_blacklisted_fails() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let contract_id = env.register(EventRegistry, ());
+    let client = EventRegistryClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let platform_wallet = Address::generate(&env);
+    let organizer = Address::generate(&env);
+
+    client.initialize(&admin, &platform_wallet, &500);
+
+    // Try to remove non-blacklisted organizer - should fail
+    let reason = String::from_str(&env, "Removal attempt");
+    let result = client.try_remove_from_blacklist(&organizer, &reason);
+    assert_eq!(result, Err(Ok(EventRegistryError::OrganizerNotBlacklisted)));
+}
